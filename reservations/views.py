@@ -1,0 +1,591 @@
+import csv
+from decimal import Decimal
+from io import BytesIO
+
+from django.contrib import messages
+from django.contrib.auth import login, logout
+from django.contrib.auth.forms import AuthenticationForm
+from django.db.models import Sum, Q, Count
+from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
+from django.shortcuts import render, redirect, get_object_or_404
+from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+
+from . import cinetpay
+from .decorators import admin_required, agent_required, est_administrateur, passager_connecte, passager_required
+from .forms import (
+    RechercheForm, ReservationForm, ReservationComptoirForm, MesBilletsForm,
+    RouteForm, BateauForm, TraverseeForm,
+    PassagerInscriptionForm, PassagerConnexionForm,
+)
+from .models import Route, Bateau, Traversee, Reservation, Passager
+from .notifications import envoyer_billet_email, alerter_admin_traversee_pleine
+
+
+# ---------------------------------------------------------------------
+# Espace public — recherche & réservation
+# ---------------------------------------------------------------------
+
+def home(request):
+    form = RechercheForm(request.GET or None)
+    resultats = None
+
+    if request.GET:
+        traversees = Traversee.objects.select_related('route', 'bateau').filter(
+            date__gte=timezone.localdate(),
+            bateau__en_service=True,  # un bateau en maintenance n'est jamais proposé
+        )
+        if form.is_valid():
+            depart = form.cleaned_data.get('depart')
+            arrivee = form.cleaned_data.get('arrivee')
+            date = form.cleaned_data.get('date')
+            if depart:
+                traversees = traversees.filter(route__port_depart=depart)
+            if arrivee:
+                traversees = traversees.filter(route__port_arrivee=arrivee)
+            if date:
+                traversees = traversees.filter(date=date)
+        resultats = traversees.order_by('date', 'heure')
+
+    ports = sorted(set(
+        list(Route.objects.values_list('port_depart', flat=True)) +
+        list(Route.objects.values_list('port_arrivee', flat=True))
+    ))
+
+    return render(request, 'reservations/home.html', {
+        'form': form,
+        'resultats': resultats,
+        'ports': ports,
+    })
+
+
+def passager_lookup(request, telephone):
+    """API légère utilisée par le formulaire de réservation pour retrouver
+    automatiquement le nom d'un passager déjà venu (historique des passagers)."""
+    nom = Reservation.nom_pour_telephone(telephone)
+    return JsonResponse({'nom': nom})
+
+
+def reserver(request, traversee_id):
+    traversee = get_object_or_404(Traversee.objects.select_related('route', 'bateau'), pk=traversee_id)
+    passager = passager_connecte(request)
+
+    if request.method == 'POST':
+        form = ReservationForm(request.POST, traversee=traversee)
+        if form.is_valid():
+            reservation = form.save(commit=False)
+            reservation.traversee = traversee
+            reservation.total = Decimal(reservation.nb_places) * traversee.prix
+            reservation.statut = Reservation.Statut.EN_ATTENTE
+            if passager:
+                reservation.passager = passager
+            reservation.save()
+
+            try:
+                payment_url = cinetpay.initier_paiement(reservation, request)
+            except cinetpay.CinetPayError as exc:
+                reservation.marquer_echec()
+                messages.error(
+                    request,
+                    f"Le paiement n'a pas pu être initié ({exc}). Réessayez ou contactez SILIMU."
+                )
+                return redirect('reserver', traversee_id=traversee.id)
+
+            return redirect(payment_url)
+    else:
+        initial = {}
+        if passager:
+            initial = {'nom_passager': passager.nom_complet, 'telephone': passager.telephone, 'email': passager.email}
+        form = ReservationForm(traversee=traversee, initial=initial)
+
+    return render(request, 'reservations/reservation_form.html', {
+        'form': form,
+        'traversee': traversee,
+        'passager': passager,
+    })
+
+
+def _finaliser_si_payee(reservation):
+    """Actions déclenchées une seule fois quand une réservation devient confirmée :
+    envoi du billet par e-mail + alerte de remplissage à l'équipe SILIMU."""
+    if reservation.statut == Reservation.Statut.CONFIRME:
+        if not reservation.billet_envoye:
+            envoyer_billet_email(reservation)
+        alerter_admin_traversee_pleine(reservation.traversee)
+
+
+@csrf_exempt
+@require_POST
+def paiement_notification(request):
+    """
+    Appelée directement par les serveurs de CinetPay pour signaler le
+    résultat d'un paiement. On ne fait jamais confiance à ce POST seul :
+    on revérifie systématiquement le statut via l'API "check" de CinetPay.
+    """
+    transaction_id = request.POST.get('cpm_trans_id') or request.POST.get('transaction_id')
+    if not transaction_id:
+        return HttpResponseBadRequest("cpm_trans_id manquant")
+
+    reservation = Reservation.objects.filter(code=transaction_id).first()
+    if not reservation:
+        return HttpResponse(status=404)
+
+    try:
+        verification = cinetpay.verifier_paiement(transaction_id)
+    except cinetpay.CinetPayError:
+        return HttpResponse(status=200)  # CinetPay réessaiera plus tard
+
+    if cinetpay.paiement_accepte(verification):
+        reservation.marquer_payee()
+    else:
+        reservation.marquer_echec()
+
+    _finaliser_si_payee(reservation)
+    return HttpResponse(status=200)
+
+
+def paiement_retour(request, code):
+    """
+    Page où CinetPay renvoie le passager après le paiement (succès ou échec).
+    Aucun traitement de statut n'est fait ici sur la seule foi du retour :
+    on revérifie auprès de CinetPay pour donner un retour fiable et immédiat.
+    """
+    reservation = get_object_or_404(
+        Reservation.objects.select_related('traversee', 'traversee__route', 'traversee__bateau'),
+        code=code
+    )
+
+    if reservation.statut == Reservation.Statut.EN_ATTENTE:
+        try:
+            verification = cinetpay.verifier_paiement(reservation.code)
+            if cinetpay.paiement_accepte(verification):
+                reservation.marquer_payee()
+            elif verification.get('data', {}).get('status') in ('REFUSED', 'CANCELLED'):
+                reservation.marquer_echec()
+        except cinetpay.CinetPayError:
+            pass  # le webhook de notification confirmera plus tard
+
+    _finaliser_si_payee(reservation)
+
+    return render(request, 'reservations/ticket.html', {
+        'reservation': reservation,
+        'confirmation': True,
+    })
+
+
+def billet(request, code):
+    reservation = get_object_or_404(
+        Reservation.objects.select_related('traversee', 'traversee__route', 'traversee__bateau'),
+        code=code
+    )
+    return render(request, 'reservations/ticket.html', {
+        'reservation': reservation,
+        'confirmation': True,
+    })
+
+
+def mes_billets(request):
+    form = MesBilletsForm(request.GET or None)
+    resultats = []
+    if request.GET.get('q'):
+        q = request.GET['q'].strip()
+        resultats = Reservation.objects.select_related(
+            'traversee', 'traversee__route', 'traversee__bateau'
+        ).filter(Q(code__iexact=q) | Q(telephone__iexact=q))
+    return render(request, 'reservations/mes_billets.html', {
+        'form': form,
+        'resultats': resultats,
+    })
+
+
+# ---------------------------------------------------------------------
+# Compte passager (espace public)
+# ---------------------------------------------------------------------
+
+def compte_inscription(request):
+    if passager_connecte(request):
+        return redirect('compte_dashboard')
+
+    form = PassagerInscriptionForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        passager = Passager(
+            nom_complet=form.cleaned_data['nom_complet'],
+            telephone=form.cleaned_data['telephone'],
+            email=form.cleaned_data['email'],
+        )
+        passager.definir_mot_de_passe(form.cleaned_data['mot_de_passe'])
+        passager.save()
+        # Rattache automatiquement les réservations passées faites avec ce téléphone (invité)
+        Reservation.objects.filter(telephone=passager.telephone, passager__isnull=True).update(passager=passager)
+        request.session['passager_id'] = passager.id
+        messages.success(request, f"Bienvenue {passager.nom_complet} ! Votre compte est créé.")
+        return redirect('compte_dashboard')
+
+    return render(request, 'reservations/compte_inscription.html', {'form': form})
+
+
+def compte_connexion(request):
+    if passager_connecte(request):
+        return redirect('compte_dashboard')
+
+    form = PassagerConnexionForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        telephone = form.cleaned_data['telephone'].strip()
+        passager = Passager.objects.filter(telephone=telephone).first()
+        if passager and passager.verifier_mot_de_passe(form.cleaned_data['mot_de_passe']):
+            Reservation.objects.filter(telephone=passager.telephone, passager__isnull=True).update(passager=passager)
+            request.session['passager_id'] = passager.id
+            return redirect('compte_dashboard')
+        messages.error(request, "Téléphone ou mot de passe incorrect.")
+
+    return render(request, 'reservations/compte_connexion.html', {'form': form})
+
+
+def compte_deconnexion(request):
+    request.session.pop('passager_id', None)
+    return redirect('home')
+
+
+@passager_required
+def compte_dashboard(request):
+    passager = passager_connecte(request)
+    reservations = passager.reservations.select_related(
+        'traversee', 'traversee__route', 'traversee__bateau'
+    ).order_by('-date_creation')
+    return render(request, 'reservations/compte_dashboard.html', {
+        'passager': passager,
+        'reservations': reservations,
+    })
+
+
+# ---------------------------------------------------------------------
+# Authentification back-office
+# ---------------------------------------------------------------------
+
+def admin_login(request):
+    if request.user.is_authenticated and request.user.is_staff:
+        return redirect('admin_dashboard' if est_administrateur(request.user) else 'admin_comptoir')
+
+    form = AuthenticationForm(request, data=request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        user = form.get_user()
+        if not user.is_staff:
+            messages.error(request, "Ce compte n'a pas accès au back-office.")
+        else:
+            login(request, user)
+            return redirect('admin_dashboard' if est_administrateur(user) else 'admin_comptoir')
+
+    return render(request, 'reservations/admin_login.html', {'form': form})
+
+
+def admin_logout(request):
+    logout(request)
+    return redirect('home')
+
+
+# ---------------------------------------------------------------------
+# Back-office — vente au comptoir (agents guichet + administrateurs)
+# ---------------------------------------------------------------------
+
+@agent_required
+def admin_comptoir(request):
+    traversee = None
+    traversee_id = request.GET.get('traversee') or request.POST.get('traversee')
+    if traversee_id:
+        traversee = get_object_or_404(Traversee.objects.select_related('route', 'bateau'), pk=traversee_id)
+
+    if request.method == 'POST' and traversee:
+        form = ReservationComptoirForm(request.POST, traversee=traversee)
+        if form.is_valid():
+            reservation = form.save(commit=False)
+            reservation.traversee = traversee
+            reservation.total = Decimal(reservation.nb_places) * traversee.prix
+            reservation.mode_paiement = Reservation.ModePaiement.ESPECES
+            reservation.statut = Reservation.Statut.CONFIRME  # encaissé sur place, immédiatement confirmé
+            reservation.enregistre_par = request.user
+            reservation.save()
+            _finaliser_si_payee(reservation)
+            messages.success(request, f"Billet {reservation.code} enregistré et payé en espèces.")
+            return redirect('billet', code=reservation.code)
+    else:
+        form = ReservationComptoirForm(traversee=traversee) if traversee else None
+
+    traversees_du_jour = Traversee.objects.select_related('route', 'bateau').filter(
+        date__gte=timezone.localdate(), bateau__en_service=True
+    ).order_by('date', 'heure')[:100]
+
+    return render(request, 'reservations/admin_comptoir.html', {
+        'form': form,
+        'traversee': traversee,
+        'traversees_du_jour': traversees_du_jour,
+    })
+
+
+# ---------------------------------------------------------------------
+# Back-office — statistiques (administrateurs uniquement)
+# ---------------------------------------------------------------------
+
+@admin_required
+def admin_dashboard(request):
+    payees = Reservation.objects.filter(statut=Reservation.Statut.CONFIRME)
+
+    par_ligne = (
+        payees.values('traversee__route__port_depart', 'traversee__route__port_arrivee')
+        .annotate(recette=Sum('total'), places=Sum('nb_places'))
+        .order_by('-recette')
+    )
+    par_bateau = (
+        payees.values('traversee__bateau__nom')
+        .annotate(recette=Sum('total'), places=Sum('nb_places'))
+        .order_by('-recette')
+    )
+    par_mode = (
+        payees.values('mode_paiement')
+        .annotate(nb_transactions=Count('id'), recette=Sum('total'))
+        .order_by('-recette')
+    )
+    for m in par_mode:
+        m['mode_paiement'] = Reservation.ModePaiement(m['mode_paiement']).label
+
+    stats = {
+        'reservations_actives': payees.count(),
+        'recette_totale': payees.aggregate(total=Sum('total'))['total'] or 0,
+        'places_vendues': payees.aggregate(total=Sum('nb_places'))['total'] or 0,
+        'en_attente': Reservation.objects.filter(statut=Reservation.Statut.EN_ATTENTE).count(),
+        'traversees_aujourdhui': Traversee.objects.filter(date=timezone.localdate()).count(),
+        'nb_lignes': Route.objects.count(),
+        'nb_bateaux': Bateau.objects.count(),
+        'nb_bateaux_maintenance': Bateau.objects.filter(en_service=False).count(),
+        'nb_traversees': Traversee.objects.count(),
+    }
+
+    traversees_a_venir = Traversee.objects.select_related('route', 'bateau').filter(
+        date__gte=timezone.localdate()
+    ).order_by('date', 'heure')[:30]
+    taux_moyen = 0
+    liste_taux = [t.taux_remplissage() for t in traversees_a_venir if t.bateau.capacite]
+    if liste_taux:
+        taux_moyen = round(sum(liste_taux) / len(liste_taux))
+
+    return render(request, 'reservations/admin_dashboard.html', {
+        'stats': stats,
+        'par_ligne': list(par_ligne),
+        'par_bateau': list(par_bateau),
+        'par_mode': list(par_mode),
+        'taux_moyen': taux_moyen,
+    })
+
+
+# ---------------------------------------------------------------------
+# Back-office — Lignes (administrateurs uniquement)
+# ---------------------------------------------------------------------
+
+@admin_required
+def admin_routes(request):
+    if request.method == 'POST':
+        form = RouteForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Ligne ajoutée.")
+            return redirect('admin_routes')
+    else:
+        form = RouteForm()
+    routes = Route.objects.all()
+    return render(request, 'reservations/admin_routes.html', {'form': form, 'routes': routes})
+
+
+@admin_required
+def admin_route_delete(request, pk):
+    route = get_object_or_404(Route, pk=pk)
+    route.delete()
+    messages.success(request, "Ligne supprimée.")
+    return redirect('admin_routes')
+
+
+# ---------------------------------------------------------------------
+# Back-office — Bateaux (administrateurs uniquement)
+# ---------------------------------------------------------------------
+
+@admin_required
+def admin_boats(request):
+    if request.method == 'POST':
+        form = BateauForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Bateau ajouté.")
+            return redirect('admin_boats')
+    else:
+        form = BateauForm()
+    bateaux = Bateau.objects.all()
+    return render(request, 'reservations/admin_boats.html', {'form': form, 'bateaux': bateaux})
+
+
+@admin_required
+def admin_boat_delete(request, pk):
+    bateau = get_object_or_404(Bateau, pk=pk)
+    bateau.delete()
+    messages.success(request, "Bateau supprimé.")
+    return redirect('admin_boats')
+
+
+@admin_required
+@require_POST
+def admin_boat_toggle_service(request, pk):
+    """Basculer un bateau en maintenance / remise en service."""
+    bateau = get_object_or_404(Bateau, pk=pk)
+    bateau.en_service = not bateau.en_service
+    bateau.save(update_fields=['en_service'])
+    etat = "remis en service" if bateau.en_service else "mis en maintenance"
+    messages.success(request, f"{bateau.nom} {etat}.")
+    return redirect('admin_boats')
+
+
+# ---------------------------------------------------------------------
+# Back-office — Traversées (administrateurs uniquement)
+# ---------------------------------------------------------------------
+
+@admin_required
+def admin_trips(request):
+    if request.method == 'POST':
+        form = TraverseeForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Traversée programmée.")
+            return redirect('admin_trips')
+    else:
+        form = TraverseeForm()
+    traversees = Traversee.objects.select_related('route', 'bateau').order_by('date', 'heure')
+    return render(request, 'reservations/admin_trips.html', {'form': form, 'traversees': traversees})
+
+
+@admin_required
+def admin_trip_delete(request, pk):
+    traversee = get_object_or_404(Traversee, pk=pk)
+    traversee.delete()
+    messages.success(request, "Traversée supprimée.")
+    return redirect('admin_trips')
+
+
+# ---------------------------------------------------------------------
+# Back-office — Réservations (agents guichet + administrateurs)
+# ---------------------------------------------------------------------
+
+@agent_required
+def admin_bookings(request):
+    reservations = Reservation.objects.select_related(
+        'traversee', 'traversee__route', 'traversee__bateau'
+    ).order_by('-date_creation')
+    return render(request, 'reservations/admin_bookings.html', {'reservations': reservations})
+
+
+@agent_required
+def admin_booking_cancel(request, pk):
+    reservation = get_object_or_404(Reservation, pk=pk)
+    reservation.statut = Reservation.Statut.ANNULE
+    reservation.save()
+    messages.success(request, f"Réservation {reservation.code} annulée.")
+    return redirect('admin_bookings')
+
+
+# ---------------------------------------------------------------------
+# Back-office — Exports comptables (administrateurs uniquement)
+# ---------------------------------------------------------------------
+
+def _reservations_pour_export():
+    return Reservation.objects.select_related(
+        'traversee', 'traversee__route', 'traversee__bateau'
+    ).order_by('-date_creation')
+
+
+@admin_required
+def export_bookings_csv(request):
+    response = HttpResponse(content_type='text/csv; charset=utf-8')
+    response['Content-Disposition'] = 'attachment; filename="reservations_silimu.csv"'
+    writer = csv.writer(response)
+    writer.writerow(['Code', 'Passager', 'Téléphone', 'Ligne', 'Date', 'Heure', 'Bateau',
+                      'Places', 'Total (FC)', 'Mode de paiement', 'Statut', 'Créé le'])
+    for r in _reservations_pour_export():
+        writer.writerow([
+            r.code, r.nom_passager, r.telephone, str(r.traversee.route),
+            r.traversee.date, r.traversee.heure, r.traversee.bateau.nom,
+            r.nb_places, r.total, r.get_mode_paiement_display(), r.get_statut_display(),
+            r.date_creation.strftime('%Y-%m-%d %H:%M'),
+        ])
+    return response
+
+
+@admin_required
+def export_bookings_xlsx(request):
+    from openpyxl import Workbook
+    from openpyxl.styles import Font
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Réservations SILIMU"
+    entetes = ['Code', 'Passager', 'Téléphone', 'Ligne', 'Date', 'Heure', 'Bateau',
+               'Places', 'Total (FC)', 'Mode de paiement', 'Statut', 'Créé le']
+    ws.append(entetes)
+    for cell in ws[1]:
+        cell.font = Font(bold=True)
+
+    for r in _reservations_pour_export():
+        ws.append([
+            r.code, r.nom_passager, r.telephone, str(r.traversee.route),
+            r.traversee.date.strftime('%Y-%m-%d'), r.traversee.heure.strftime('%H:%M'),
+            r.traversee.bateau.nom, r.nb_places, float(r.total),
+            r.get_mode_paiement_display(), r.get_statut_display(),
+            r.date_creation.strftime('%Y-%m-%d %H:%M'),
+        ])
+
+    for col in ws.columns:
+        largeur = max(len(str(c.value)) if c.value else 0 for c in col) + 2
+        ws.column_dimensions[col[0].column_letter].width = min(largeur, 40)
+
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    response = HttpResponse(
+        buffer.read(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = 'attachment; filename="reservations_silimu.xlsx"'
+    return response
+
+
+@admin_required
+def export_bookings_pdf(request):
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import landscape, A4
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
+    from reportlab.lib.styles import getSampleStyleSheet
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), title="Réservations SILIMU")
+    styles = getSampleStyleSheet()
+
+    data = [['Code', 'Passager', 'Téléphone', 'Ligne', 'Date', 'Places', 'Total (FC)', 'Paiement', 'Statut']]
+    for r in _reservations_pour_export():
+        data.append([
+            r.code, r.nom_passager, r.telephone, str(r.traversee.route),
+            r.traversee.date.strftime('%d/%m/%Y'), str(r.nb_places),
+            f"{r.total:,.0f}".replace(',', ' '), r.get_mode_paiement_display(), r.get_statut_display(),
+        ])
+
+    table = Table(data, repeatRows=1)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0B3D4C')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTSIZE', (0, 0), (-1, -1), 8),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cccccc')),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F6F1E4')]),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+
+    titre = Paragraph("Réservations — SILIMU (transport lacustre)", styles['Title'])
+    doc.build([titre, table])
+    buffer.seek(0)
+
+    response = HttpResponse(buffer.read(), content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="reservations_silimu.pdf"'
+    return response

@@ -1,0 +1,38 @@
+{% extends "reservations/base.html" %}
+{% block title %}Billet {{ reservation.code }}{% endblock %}
+
+{% block content %}
+<div class="py-10">
+  {% if confirmation %}
+    <div class="text-center mb-8">
+      <div class="font-mono text-xs tracking-[0.25em] text-sunset uppercase mb-2">
+        {% if reservation.statut == 'CONFIRME' %}Paiement confirmé
+        {% elif reservation.statut == 'EN_ATTENTE' %}Paiement en cours
+        {% else %}Paiement non abouti{% endif %}
+      </div>
+      {% if reservation.statut == 'CONFIRME' %}
+        <h1 class="font-display text-3xl font-bold text-lake">Bon voyage sur le lac 🌊</h1>
+        <p class="text-teal-800/70 mt-2 text-sm">Conservez le code ci-dessous, il vous sera demandé à l'embarquement.</p>
+      {% elif reservation.statut == 'EN_ATTENTE' %}
+        <h1 class="font-display text-3xl font-bold text-lake">Paiement en cours de vérification</h1>
+        <p class="text-teal-800/70 mt-2 text-sm">Si vous avez déjà payé, actualisez cette page dans quelques instants.</p>
+      {% else %}
+        <h1 class="font-display text-3xl font-bold text-lake">Le paiement n'a pas abouti</h1>
+        <p class="text-teal-800/70 mt-2 text-sm">Vos places n'ont pas été bloquées. Vous pouvez réessayer une nouvelle réservation.</p>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <div class="max-w-md mx-auto">
+    {% include "reservations/_ticket_card.html" %}
+  </div>
+
+  <div class="flex gap-3 justify-center mt-8 no-print">
+    {% if reservation.statut == 'EN_ATTENTE' %}
+      <a href="{% url 'paiement_retour' reservation.code %}" class="bg-lake text-white font-semibold rounded-lg px-5 py-2.5">Actualiser le statut</a>
+    {% endif %}
+    <button onclick="window.print()" class="border border-lake text-lake font-semibold rounded-lg px-5 py-2.5">Imprimer</button>
+    <a href="{% url 'home' %}" class="bg-sunset text-white font-semibold rounded-lg px-5 py-2.5">Nouvelle réservation</a>
+  </div>
+</div>
+{% endblock %}

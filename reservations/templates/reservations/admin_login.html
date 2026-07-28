@@ -1,0 +1,35 @@
+{% extends "reservations/base.html" %}
+{% block title %}Connexion — Back-office SILIMU{% endblock %}
+
+{% block content %}
+<div class="max-w-sm mx-auto py-24">
+  <div class="bg-white rounded-2xl shadow-xl border border-black/5 p-6 text-center">
+    <div class="font-mono text-xs tracking-[0.25em] text-sunset uppercase mb-2">Accès restreint</div>
+    <h2 class="font-display text-2xl font-bold text-lake mb-4">Espace administration</h2>
+    <form method="post" novalidate class="space-y-3 text-left">
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+        <p class="text-red-500 text-xs">{{ form.non_field_errors|striptags }}</p>
+      {% endif %}
+      <div>
+        <label class="block font-mono text-[11px] uppercase tracking-widest text-teal-700 mb-1.5">Identifiant</label>
+        {{ form.username }}
+      </div>
+      <div>
+        <label class="block font-mono text-[11px] uppercase tracking-widest text-teal-700 mb-1.5">Mot de passe</label>
+        {{ form.password }}
+      </div>
+      <button type="submit" class="w-full bg-lake text-white font-semibold rounded-lg px-4 py-2.5">Se connecter</button>
+    </form>
+    <p class="text-[11px] text-teal-700/70 mt-3 font-mono">Compte créé via <code>python manage.py createsuperuser</code></p>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+  input[type=text], input[type=password]{
+    width:100%; border:1px solid var(--dock-sand); border-radius:0.5rem; padding:0.625rem 0.75rem;
+  }
+</style>
+{% endblock %}

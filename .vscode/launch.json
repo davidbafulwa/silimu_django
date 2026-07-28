@@ -1,0 +1,27 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: Django Server (SILIMU)",
+      "type": "debugpy",
+      "request": "launch",
+      "args": [
+        "runserver",
+        "0.0.0.0:8000"
+      ],
+      "django": true,
+      "autoStartBrowser": false,
+      "program": "${workspaceFolder}/manage.py"
+    },
+    {
+      "name": "Python: Django Tests",
+      "type": "debugpy",
+      "request": "launch",
+      "args": [
+        "test"
+      ],
+      "django": true,
+      "program": "${workspaceFolder}/manage.py"
+    }
+  ]
+}

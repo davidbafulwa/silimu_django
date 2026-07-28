@@ -1,0 +1,66 @@
+{% extends "reservations/base.html" %}
+{% load humanize %}
+{% block title %}Vente au comptoir — SILIMU{% endblock %}
+
+{% block content %}
+<div class="pt-8">
+  {% include "reservations/_admin_nav.html" with active="comptoir" %}
+
+  {% if not traversee %}
+    <div class="bg-white rounded-xl p-5 shadow border border-black/5">
+      <div class="font-mono text-xs uppercase tracking-widest text-teal-700 mb-3">Choisir une traversée</div>
+      <div class="divide-y">
+        {% for t in traversees_du_jour %}
+          <div class="flex items-center justify-between py-3">
+            <div>
+              <div class="font-semibold text-lake">{{ t.route.port_depart }} → {{ t.route.port_arrivee }}</div>
+              <div class="text-xs text-teal-800/60">{{ t.date }} à {{ t.heure|time:"H:i" }} · {{ t.bateau.nom }} · {{ t.prix|floatformat:0|intcomma }} FC/place</div>
+            </div>
+            {% if t.est_complet %}
+              <span class="bg-red-100 text-red-600 text-xs font-semibold rounded-full px-3 py-1.5">Complet</span>
+            {% else %}
+              <a href="{% url 'admin_comptoir' %}?traversee={{ t.id }}" class="bg-sunset text-white text-xs font-semibold rounded-full px-4 py-2">{{ t.places_disponibles }} place(s) — Vendre</a>
+            {% endif %}
+          </div>
+        {% empty %}
+          <p class="text-teal-800/60 py-4">Aucune traversée à venir programmée.</p>
+        {% endfor %}
+      </div>
+    </div>
+  {% else %}
+    <a href="{% url 'admin_comptoir' %}" class="text-sm text-teal-700 mb-4 inline-block hover:underline">&larr; Choisir une autre traversée</a>
+    <div class="bg-white rounded-2xl shadow-xl border border-black/5 p-6 max-w-xl">
+      <div class="font-mono text-xs uppercase tracking-widest text-sunset mb-1">Vente au comptoir · Espèces</div>
+      <h2 class="font-display text-2xl font-bold text-lake mb-1">{{ traversee.route.port_depart }} → {{ traversee.route.port_arrivee }}</h2>
+      <p class="text-sm text-teal-800/70 mb-6">{{ traversee.date }} à {{ traversee.heure|time:"H:i" }} · {{ traversee.bateau.nom }} · {{ traversee.places_disponibles }} place(s) disponible(s)</p>
+
+      <form method="post" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="traversee" value="{{ traversee.id }}">
+        <div class="space-y-4">
+          {% for field in form %}
+            <div>
+              <label class="block font-mono text-[11px] uppercase tracking-widest text-teal-700 mb-1.5">{{ field.label }}</label>
+              {{ field }}
+              {% if field.errors %}<p class="text-red-500 text-xs mt-1">{{ field.errors|striptags }}</p>{% endif %}
+            </div>
+          {% endfor %}
+        </div>
+        <div class="border-t border-dashed border-dock mt-6 pt-4 flex items-center justify-between">
+          <span class="font-mono text-xs uppercase tracking-widest text-teal-700">Prix par place</span>
+          <span class="font-display text-xl font-bold text-lake">{{ traversee.prix|floatformat:0|intcomma }} FC</span>
+        </div>
+        <button type="submit" class="mt-5 w-full bg-sunset hover:brightness-95 text-white font-semibold rounded-lg px-4 py-3 transition">Encaisser et émettre le billet</button>
+      </form>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+  input[type=text], input[type=number], input[type=tel], input[type=email]{
+    width:100%; border:1px solid var(--dock-sand); border-radius:0.5rem; padding:0.625rem 0.75rem;
+  }
+</style>
+{% endblock %}

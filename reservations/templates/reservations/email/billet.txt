@@ -1,0 +1,18 @@
+SILIMU — Confirmation de billet
+
+Bonjour {{ reservation.nom_passager }},
+
+Votre réservation est confirmée.
+
+Ligne : {{ reservation.traversee.route.port_depart }} -> {{ reservation.traversee.route.port_arrivee }}
+Date : {{ reservation.traversee.date }}
+Heure : {{ reservation.traversee.heure }}
+Bateau : {{ reservation.traversee.bateau.nom }}
+Places : {{ reservation.nb_places }}
+Total payé : {{ reservation.total }} FC
+Code du billet : {{ reservation.code }}
+
+Présentez ce code à l'embarquement.
+
+Bon voyage sur le lac,
+L'équipe SILIMU

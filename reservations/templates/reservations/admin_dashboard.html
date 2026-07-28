@@ -1,0 +1,117 @@
+{% extends "reservations/base.html" %}
+{% load humanize %}
+{% block title %}Statistiques — Back-office SILIMU{% endblock %}
+{% block content %}
+<div class="pt-8">
+  {% include "reservations/_admin_nav.html" with active="stats" %}
+
+  <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+    <div class="bg-white rounded-xl p-5 shadow border border-black/5">
+      <div class="font-mono text-[11px] uppercase tracking-widest text-teal-700 mb-1">Réservations payées</div>
+      <div class="font-display text-2xl font-bold text-lake">{{ stats.reservations_actives }}</div>
+    </div>
+    <div class="bg-white rounded-xl p-5 shadow border border-black/5">
+      <div class="font-mono text-[11px] uppercase tracking-widest text-teal-700 mb-1">Recette totale</div>
+      <div class="font-display text-2xl font-bold text-lake">{{ stats.recette_totale|floatformat:0|intcomma }} FC</div>
+    </div>
+    <div class="bg-white rounded-xl p-5 shadow border border-black/5">
+      <div class="font-mono text-[11px] uppercase tracking-widest text-teal-700 mb-1">Places vendues</div>
+      <div class="font-display text-2xl font-bold text-lake">{{ stats.places_vendues }}</div>
+    </div>
+    <div class="bg-white rounded-xl p-5 shadow border border-black/5">
+      <div class="font-mono text-[11px] uppercase tracking-widest text-teal-700 mb-1">Paiements en attente</div>
+      <div class="font-display text-2xl font-bold text-amber-600">{{ stats.en_attente }}</div>
+    </div>
+    <div class="bg-white rounded-xl p-5 shadow border border-black/5">
+      <div class="font-mono text-[11px] uppercase tracking-widest text-teal-700 mb-1">Taux de remplissage moyen</div>
+      <div class="font-display text-2xl font-bold text-lake">{{ taux_moyen }}%</div>
+    </div>
+  </div>
+
+  <div class="grid md:grid-cols-2 gap-6 mb-8">
+    <div class="bg-white rounded-xl p-5 shadow border border-black/5">
+      <div class="font-mono text-xs uppercase tracking-widest text-teal-700 mb-3">Recette par ligne</div>
+      <canvas id="chartLignes" height="220"></canvas>
+    </div>
+    <div class="bg-white rounded-xl p-5 shadow border border-black/5">
+      <div class="font-mono text-xs uppercase tracking-widest text-teal-700 mb-3">Recette par bateau</div>
+      <canvas id="chartBateaux" height="220"></canvas>
+    </div>
+  </div>
+
+  <div class="grid md:grid-cols-2 gap-6 mb-8">
+    <div class="bg-white rounded-xl shadow border border-black/5 overflow-hidden">
+      <div class="font-mono text-xs uppercase tracking-widest text-teal-700 px-5 pt-5 pb-2">Détail par ligne</div>
+      <table class="w-full text-sm">
+        <thead class="text-left text-teal-700 border-b"><tr>
+          <th class="px-5 py-2">Ligne</th><th class="px-5 py-2">Places</th><th class="px-5 py-2">Recette</th>
+        </tr></thead>
+        <tbody class="divide-y">
+          {% for l in par_ligne %}
+          <tr>
+            <td class="px-5 py-2">{{ l.traversee__route__port_depart }} → {{ l.traversee__route__port_arrivee }}</td>
+            <td class="px-5 py-2">{{ l.places }}</td>
+            <td class="px-5 py-2 font-mono">{{ l.recette|floatformat:0|intcomma }} FC</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="3" class="px-5 py-4 text-teal-800/60">Aucune vente confirmée pour le moment.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="bg-white rounded-xl shadow border border-black/5 overflow-hidden">
+      <div class="font-mono text-xs uppercase tracking-widest text-teal-700 px-5 pt-5 pb-2">Répartition par mode de paiement</div>
+      <table class="w-full text-sm">
+        <thead class="text-left text-teal-700 border-b"><tr>
+          <th class="px-5 py-2">Mode</th><th class="px-5 py-2">Transactions</th><th class="px-5 py-2">Recette</th>
+        </tr></thead>
+        <tbody class="divide-y">
+          {% for m in par_mode %}
+          <tr>
+            <td class="px-5 py-2">{{ m.mode_paiement }}</td>
+            <td class="px-5 py-2">{{ m.nb_transactions }}</td>
+            <td class="px-5 py-2 font-mono">{{ m.recette|floatformat:0|intcomma }} FC</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="3" class="px-5 py-4 text-teal-800/60">Aucune vente confirmée pour le moment.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl p-5 shadow border border-black/5">
+    <div class="font-mono text-xs uppercase tracking-widest text-teal-700 mb-3">Aperçu du réseau</div>
+    <p class="text-sm text-teal-800/70">
+      {{ stats.nb_lignes }} ligne(s) lacustre(s) exploitée(s) avec {{ stats.nb_bateaux }} bateau(x)
+      ({{ stats.nb_bateaux_maintenance }} en maintenance), pour {{ stats.nb_traversees }} traversées programmées au total,
+      dont {{ stats.traversees_aujourdhui }} aujourd'hui.
+    </p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var lignesLabels = [{% for l in par_ligne %}"{{ l.traversee__route__port_depart }} → {{ l.traversee__route__port_arrivee }}"{% if not forloop.last %},{% endif %}{% endfor %}];
+  var lignesData = [{% for l in par_ligne %}{{ l.recette|default:0 }}{% if not forloop.last %},{% endif %}{% endfor %}];
+  var bateauxLabels = [{% for b in par_bateau %}"{{ b.traversee__bateau__nom }}"{% if not forloop.last %},{% endif %}{% endfor %}];
+  var bateauxData = [{% for b in par_bateau %}{{ b.recette|default:0 }}{% if not forloop.last %},{% endif %}{% endfor %}];
+
+  var palette = ['#E8734A', '#1C7C8C', '#0B3D4C', '#C9A876', '#8fd3de', '#f2b880'];
+
+  if (window.Chart) {
+    new Chart(document.getElementById('chartLignes'), {
+      type: 'bar',
+      data: { labels: lignesLabels, datasets: [{ label: 'Recette (FC)', data: lignesData, backgroundColor: '#1C7C8C', borderRadius: 6 }] },
+      options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { font: { size: 10 } } } } }
+    });
+    new Chart(document.getElementById('chartBateaux'), {
+      type: 'doughnut',
+      data: { labels: bateauxLabels, datasets: [{ data: bateauxData, backgroundColor: palette }] },
+      options: { plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } } } }
+    });
+  }
+});
+</script>
+{% endblock %}

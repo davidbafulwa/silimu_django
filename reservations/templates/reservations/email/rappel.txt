@@ -1,0 +1,17 @@
+SILIMU — Rappel de départ
+
+Bonjour {{ reservation.nom_passager }},
+
+Votre traversée approche !
+
+Ligne : {{ reservation.traversee.route.port_depart }} -> {{ reservation.traversee.route.port_arrivee }}
+Date : {{ reservation.traversee.date }}
+Heure : {{ reservation.traversee.heure }}
+Bateau : {{ reservation.traversee.bateau.nom }}
+Places : {{ reservation.nb_places }}
+Code du billet : {{ reservation.code }}
+
+Merci d'être présent(e) au port au moins 30 minutes avant le départ.
+
+Bon voyage sur le lac,
+L'équipe SILIMU

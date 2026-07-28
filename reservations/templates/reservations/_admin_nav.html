@@ -1,0 +1,19 @@
+<div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+  <div>
+    <h1 class="font-display text-2xl font-bold text-lake">Back-office SILIMU</h1>
+    <p class="text-xs text-teal-700 font-mono mt-1">
+      Connecté en tant que {{ request.user.username }} · {% if is_admin %}Administrateur{% else %}Agent guichet{% endif %}
+    </p>
+  </div>
+  <a href="{% url 'admin_logout' %}" class="text-sm text-teal-700 hover:underline">Se déconnecter</a>
+</div>
+<div class="flex gap-1 bg-white rounded-full p-1 w-fit mb-6 shadow border border-black/5 overflow-x-auto">
+  <a href="{% url 'admin_comptoir' %}" class="tab-btn {% if active == 'comptoir' %}active{% endif %} px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap">Comptoir</a>
+  <a href="{% url 'admin_bookings' %}" class="tab-btn {% if active == 'bookings' %}active{% endif %} px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap">Réservations</a>
+  {% if is_admin %}
+    <a href="{% url 'admin_dashboard' %}" class="tab-btn {% if active == 'stats' %}active{% endif %} px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap">Statistiques</a>
+    <a href="{% url 'admin_routes' %}" class="tab-btn {% if active == 'routes' %}active{% endif %} px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap">Lignes</a>
+    <a href="{% url 'admin_boats' %}" class="tab-btn {% if active == 'boats' %}active{% endif %} px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap">Bateaux</a>
+    <a href="{% url 'admin_trips' %}" class="tab-btn {% if active == 'trips' %}active{% endif %} px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap">Traversées</a>
+  {% endif %}
+</div>

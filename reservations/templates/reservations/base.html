@@ -1,0 +1,99 @@
+{% load humanize %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}SILIMU — Transport lacustre{% endblock %}</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --lake-deep:#0B3D4C; --lake-teal:#1C7C8C; --dock-sand:#C9A876;
+    --sunset:#E8734A; --paper:#F6F1E4; --ink:#152A2F;
+  }
+  *{box-sizing:border-box;}
+  body{font-family:'Inter',sans-serif;background:var(--paper);color:var(--ink);}
+  .font-display{font-family:'Fraunces',serif;}
+  .font-mono{font-family:'Space Mono',monospace;}
+  .bg-lake{background:var(--lake-deep);} .bg-teal{background:var(--lake-teal);}
+  .text-lake{color:var(--lake-deep);} .text-teal{color:var(--lake-teal);}
+  .text-sunset{color:var(--sunset);} .bg-sunset{background:var(--sunset);}
+  .border-dock{border-color:var(--dock-sand);}
+  ::selection{background:var(--sunset); color:#fff;}
+  .ripple-bg{
+    background-image:
+      repeating-radial-gradient(circle at 20% 30%, rgba(255,255,255,0.05) 0, rgba(255,255,255,0.05) 1px, transparent 1px, transparent 60px),
+      repeating-radial-gradient(circle at 80% 70%, rgba(255,255,255,0.04) 0, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 80px);
+  }
+  .wave-divider{
+    height:28px;
+    background: linear-gradient(135deg, var(--lake-teal) 25%, transparent 25%) -14px 0,
+                linear-gradient(225deg, var(--lake-teal) 25%, transparent 25%) -14px 0,
+                linear-gradient(315deg, var(--lake-teal) 25%, transparent 25%),
+                linear-gradient(45deg, var(--lake-teal) 25%, transparent 25%);
+    background-size: 28px 28px; opacity:0.9;
+  }
+  .ticket{position:relative; background:#fff; border-radius:18px; box-shadow:0 20px 50px -20px rgba(11,61,76,0.45);}
+  .perf{position:relative; height:0; border-top:2px dashed #d8cfba;}
+  .perf::before, .perf::after{content:""; position:absolute; top:-11px; width:22px; height:22px; border-radius:50%; background:var(--paper);}
+  .perf::before{left:-11px;} .perf::after{right:-11px;}
+  .dot-code{background-image: repeating-linear-gradient(90deg, var(--ink) 0 2px, transparent 2px 4px); height:34px;}
+  .tab-btn.active{background:var(--lake-deep); color:#fff;}
+  .tab-btn:not(.active):hover{background:rgba(11,61,76,0.08);}
+  .board-row:hover{background:rgba(28,124,140,0.06);}
+  .focus-ring:focus{outline:2px solid var(--sunset); outline-offset:2px;}
+  input, select{background:#fff;}
+  @media print { header, .no-print { display:none !important; } body{background:#fff;} }
+</style>
+{% block extra_head %}{% endblock %}
+</head>
+<body class="min-h-screen">
+
+<header class="bg-lake ripple-bg text-white sticky top-0 z-30 shadow-lg">
+  <div class="max-w-6xl mx-auto px-5 pt-5 pb-4 flex items-center justify-between gap-4 flex-wrap">
+    <a href="{% url 'home' %}" class="flex items-center gap-3">
+      <div class="w-11 h-11 rounded-full bg-sunset flex items-center justify-center font-display text-xl font-bold shrink-0">S</div>
+      <div>
+        <div class="font-display text-2xl font-bold tracking-tight leading-none">SILIMU</div>
+        <div class="font-mono text-[11px] tracking-widest text-teal-100/80 uppercase mt-0.5">Transport lacustre</div>
+      </div>
+    </a>
+    <nav class="flex gap-1 bg-white/10 rounded-full p-1 flex-wrap">
+      <a href="{% url 'home' %}" class="tab-btn {% if request.resolver_match.url_name == 'home' %}active{% endif %} px-4 py-2 rounded-full text-sm font-semibold">Réserver</a>
+      <a href="{% url 'mes_billets' %}" class="tab-btn {% if request.resolver_match.url_name == 'mes_billets' %}active{% endif %} px-4 py-2 rounded-full text-sm font-semibold">Mes billets</a>
+      {% if passager %}
+        <a href="{% url 'compte_dashboard' %}" class="tab-btn {% if 'compte_' in request.resolver_match.url_name %}active{% endif %} px-4 py-2 rounded-full text-sm font-semibold">{{ passager.nom_complet|truncatechars:14 }}</a>
+      {% else %}
+        <a href="{% url 'compte_connexion' %}" class="tab-btn {% if 'compte_' in request.resolver_match.url_name %}active{% endif %} px-4 py-2 rounded-full text-sm font-semibold">Mon compte</a>
+      {% endif %}
+      {% if request.user.is_authenticated and request.user.is_staff %}
+        <a href="{% if is_admin %}{% url 'admin_dashboard' %}{% else %}{% url 'admin_comptoir' %}{% endif %}" class="tab-btn {% if 'admin_' in request.resolver_match.url_name and request.resolver_match.url_name != 'admin_login' %}active{% endif %} px-4 py-2 rounded-full text-sm font-semibold">Admin</a>
+      {% else %}
+        <a href="{% url 'admin_login' %}" class="tab-btn {% if request.resolver_match.url_name == 'admin_login' %}active{% endif %} px-4 py-2 rounded-full text-sm font-semibold">Admin</a>
+      {% endif %}
+    </nav>
+  </div>
+  <div class="wave-divider"></div>
+</header>
+
+<main class="max-w-6xl mx-auto px-5 pb-24">
+  {% if messages %}
+    <div class="mt-6 space-y-2 no-print">
+      {% for message in messages %}
+        <div class="rounded-lg px-4 py-3 text-sm font-medium {% if message.tags == 'success' %}bg-emerald-100 text-emerald-800{% elif message.tags == 'error' %}bg-red-100 text-red-800{% else %}bg-amber-100 text-amber-800{% endif %}">
+          {{ message }}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="bg-lake text-white/70 text-center text-xs font-mono py-5 mt-16 no-print">
+  Site développé par DanielBafulwa
+</footer>
+
+</body>
+</html>

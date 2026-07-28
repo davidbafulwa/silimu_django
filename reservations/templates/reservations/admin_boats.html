@@ -1,0 +1,64 @@
+{% extends "reservations/base.html" %}
+{% block title %}Bateaux — Back-office SILIMU{% endblock %}
+{% block content %}
+<div class="pt-8">
+  {% include "reservations/_admin_nav.html" with active="boats" %}
+
+  <div class="bg-white rounded-xl p-5 shadow border border-black/5 mb-6">
+    <div class="font-mono text-xs uppercase tracking-widest text-teal-700 mb-3">Ajouter un bateau</div>
+    <form method="post" class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {% csrf_token %}
+      {% for field in form %}
+        <div>
+          {{ field }}
+          {% if field.errors %}<p class="text-red-500 text-xs mt-1">{{ field.errors|striptags }}</p>{% endif %}
+        </div>
+      {% endfor %}
+      <button type="submit" class="bg-sunset text-white font-semibold rounded-lg px-3 py-2 text-sm">Ajouter</button>
+    </form>
+  </div>
+
+  <div class="bg-white rounded-xl shadow border border-black/5 overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="bg-lake text-white font-mono text-xs uppercase"><tr>
+        <th class="text-left px-4 py-3">Nom</th><th class="text-left px-4 py-3">Type</th><th class="text-left px-4 py-3">Capacité</th><th class="text-left px-4 py-3">État</th><th class="px-4 py-3"></th>
+      </tr></thead>
+      <tbody class="divide-y">
+        {% for b in bateaux %}
+        <tr>
+          <td class="px-4 py-3 font-medium">{{ b.nom }}</td>
+          <td class="px-4 py-3">{{ b.get_type_bateau_display }}</td>
+          <td class="px-4 py-3">{{ b.capacite }} places</td>
+          <td class="px-4 py-3">
+            {% if b.en_service %}
+              <span class="text-emerald-600 font-semibold text-xs">En service</span>
+            {% else %}
+              <span class="text-amber-600 font-semibold text-xs">En maintenance</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-3 text-right space-x-3">
+            <form method="post" action="{% url 'admin_boat_toggle_service' b.id %}" class="inline">
+              {% csrf_token %}
+              <button type="submit" class="text-teal-700 text-xs font-semibold hover:underline">
+                {% if b.en_service %}Mettre en maintenance{% else %}Remettre en service{% endif %}
+              </button>
+            </form>
+            <form method="post" action="{% url 'admin_boat_delete' b.id %}" onsubmit="return confirm('Supprimer ce bateau ?');" class="inline">
+              {% csrf_token %}
+              <button type="submit" class="text-red-500 text-xs font-semibold hover:underline">Supprimer</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="text-xs text-teal-800/60 mt-3">Un bateau « en maintenance » n'apparaît plus dans les résultats de recherche, ni au comptoir, ni dans la liste des bateaux disponibles pour programmer une nouvelle traversée.</p>
+</div>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+  input[type=text], input[type=number], select{ width:100%; border:1px solid var(--dock-sand); border-radius:0.5rem; padding:0.5rem 0.75rem; font-size:0.875rem; }
+</style>
+{% endblock %}

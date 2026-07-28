@@ -1,0 +1,26 @@
+{% extends "reservations/base.html" %}
+{% load humanize %}
+{% block title %}Mon compte — SILIMU{% endblock %}
+{% block content %}
+<section class="pt-14 pb-6">
+  <div class="flex items-center justify-between flex-wrap gap-3">
+    <div>
+      <div class="font-mono text-xs tracking-[0.25em] text-sunset uppercase mb-2">Espace passager</div>
+      <h1 class="font-display text-3xl font-bold text-lake">Bonjour {{ passager.nom_complet }}</h1>
+      <p class="text-teal-800/70 text-sm mt-1">{{ passager.telephone }}{% if passager.email %} · {{ passager.email }}{% endif %}</p>
+    </div>
+    <a href="{% url 'compte_deconnexion' %}" class="text-sm text-teal-700 hover:underline">Se déconnecter</a>
+  </div>
+</section>
+
+<h2 class="font-display text-lg font-bold text-lake mb-3">Mes réservations ({{ reservations|length }})</h2>
+<div class="grid md:grid-cols-2 gap-6">
+  {% for reservation in reservations %}
+    {% include "reservations/_ticket_card.html" %}
+  {% empty %}
+    <div class="md:col-span-2 text-center py-16 border-2 border-dashed border-dock rounded-2xl text-teal-800/60">
+      Aucune réservation pour le moment. <a href="{% url 'home' %}" class="text-sunset font-semibold hover:underline">Réserver un billet</a>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends "reservations/base.html" %}
+{% block title %}Créer mon compte — SILIMU{% endblock %}
+{% block content %}
+<div class="max-w-sm mx-auto py-16">
+  <div class="bg-white rounded-2xl shadow-xl border border-black/5 p-6">
+    <div class="font-mono text-xs tracking-[0.25em] text-sunset uppercase mb-2">Espace passager</div>
+    <h2 class="font-display text-2xl font-bold text-lake mb-1">Créer mon compte</h2>
+    <p class="text-sm text-teal-800/70 mb-5">Retrouvez tous vos billets sans jamais les perdre.</p>
+    <form method="post" novalidate class="space-y-3">
+      {% csrf_token %}
+      {% if form.non_field_errors %}<p class="text-red-500 text-xs">{{ form.non_field_errors|striptags }}</p>{% endif %}
+      {% for field in form %}
+        <div>
+          <label class="block font-mono text-[11px] uppercase tracking-widest text-teal-700 mb-1.5">{{ field.label }}</label>
+          {{ field }}
+          {% if field.errors %}<p class="text-red-500 text-xs mt-1">{{ field.errors|striptags }}</p>{% endif %}
+        </div>
+      {% endfor %}
+      <button type="submit" class="w-full bg-sunset text-white font-semibold rounded-lg px-4 py-2.5 mt-2">Créer mon compte</button>
+    </form>
+    <p class="text-sm text-teal-800/70 mt-4 text-center">Déjà un compte ? <a href="{% url 'compte_connexion' %}" class="text-sunset font-semibold hover:underline">Se connecter</a></p>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+  input[type=text], input[type=email], input[type=password]{
+    width:100%; border:1px solid var(--dock-sand); border-radius:0.5rem; padding:0.625rem 0.75rem;
+  }
+</style>
+{% endblock %}

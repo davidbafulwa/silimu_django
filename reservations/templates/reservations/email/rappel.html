@@ -1,0 +1,22 @@
+<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;">
+  <div style="background:#E8734A;color:#fff;padding:24px;border-radius:12px 12px 0 0;">
+    <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;">Rappel de départ</div>
+    <div style="font-size:22px;font-weight:bold;margin-top:4px;">SILIMU</div>
+  </div>
+  <div style="background:#fff;border:1px solid #eee;border-top:none;padding:24px;border-radius:0 0 12px 12px;">
+    <p>Bonjour {{ reservation.nom_passager }},</p>
+    <p>Votre traversée <strong style="color:#0B3D4C;">approche</strong> ! Voici un rappel :</p>
+    <table style="width:100%;font-size:14px;border-collapse:collapse;margin-top:12px;">
+      <tr><td style="padding:6px 0;color:#666;">Ligne</td><td style="text-align:right;font-weight:bold;">{{ reservation.traversee.route.port_depart }} → {{ reservation.traversee.route.port_arrivee }}</td></tr>
+      <tr><td style="padding:6px 0;color:#666;">Date</td><td style="text-align:right;font-weight:bold;">{{ reservation.traversee.date }}</td></tr>
+      <tr><td style="padding:6px 0;color:#666;">Heure</td><td style="text-align:right;font-weight:bold;">{{ reservation.traversee.heure }}</td></tr>
+      <tr><td style="padding:6px 0;color:#666;">Bateau</td><td style="text-align:right;font-weight:bold;">{{ reservation.traversee.bateau.nom }}</td></tr>
+      <tr><td style="padding:6px 0;color:#666;">Places</td><td style="text-align:right;font-weight:bold;">{{ reservation.nb_places }}</td></tr>
+    </table>
+    <div style="text-align:center;margin-top:20px;padding:16px;border:2px dashed #C9A876;border-radius:8px;">
+      <div style="font-size:12px;color:#666;text-transform:uppercase;letter-spacing:2px;">Code du billet</div>
+      <div style="font-size:20px;font-weight:bold;color:#0B3D4C;letter-spacing:3px;margin-top:4px;">{{ reservation.code }}</div>
+    </div>
+    <p style="margin-top:20px;font-size:13px;color:#666;">Merci d'être présent(e) au port au moins 30 minutes avant le départ.</p>
+  </div>
+</div>

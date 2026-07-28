@@ -1,0 +1,76 @@
+{% extends "reservations/base.html" %}
+{% load humanize %}
+{% block title %}Réserver — {{ traversee.route }}{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto py-10">
+  <a href="{% url 'home' %}" class="text-sm text-teal-700 mb-4 inline-block hover:underline">&larr; Retour au tableau des départs</a>
+  <div class="bg-white rounded-2xl shadow-xl border border-black/5 p-6">
+    <div class="font-mono text-xs uppercase tracking-widest text-sunset mb-1">Réservation</div>
+    <h2 class="font-display text-2xl font-bold text-lake mb-1">{{ traversee.route.port_depart }} → {{ traversee.route.port_arrivee }}</h2>
+    <p class="text-sm text-teal-800/70 mb-4">{{ traversee.date }} à {{ traversee.heure|time:"H:i" }} · {{ traversee.bateau.nom }} · {{ traversee.route.duree_min }} min</p>
+
+    {% if passager %}
+      <div class="bg-teal-50 border border-teal-100 rounded-lg px-3 py-2 text-xs text-teal-800 mb-4">
+        Connecté en tant que <strong>{{ passager.nom_complet }}</strong> — ce billet sera ajouté à votre compte.
+      </div>
+    {% else %}
+      <div class="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 text-xs text-amber-800 mb-4">
+        <a href="{% url 'compte_connexion' %}" class="font-semibold hover:underline">Connectez-vous</a> ou <a href="{% url 'compte_inscription' %}" class="font-semibold hover:underline">créez un compte</a> pour retrouver facilement vos billets.
+      </div>
+    {% endif %}
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+      <div class="space-y-4">
+        {% for field in form %}
+          <div>
+            <label class="block font-mono text-[11px] uppercase tracking-widest text-teal-700 mb-1.5">{{ field.label }}</label>
+            {{ field }}
+            {% if field.errors %}
+              <p class="text-red-500 text-xs mt-1">{{ field.errors|striptags }}</p>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+
+      <div class="border-t border-dashed border-dock mt-6 pt-4 flex items-center justify-between">
+        <span class="font-mono text-xs uppercase tracking-widest text-teal-700">Prix par place</span>
+        <span class="font-display text-xl font-bold text-lake">{{ traversee.prix|floatformat:0|intcomma }} FC</span>
+      </div>
+      <p class="text-xs text-teal-800/60 mt-1">{{ traversee.places_disponibles }} place(s) disponible(s) sur ce trajet.</p>
+
+      <button type="submit" class="mt-5 w-full bg-sunset hover:brightness-95 text-white font-semibold rounded-lg px-4 py-3 transition">Payer et confirmer la réservation</button>
+      <p class="text-[11px] text-teal-800/60 mt-2 text-center">Vous allez être redirigé vers la page de paiement sécurisée CinetPay.</p>
+    </form>
+  </div>
+</div>
+
+<script>
+  // Historique des passagers : propose automatiquement le nom déjà connu pour ce téléphone
+  (function(){
+    var tel = document.getElementById('id_telephone');
+    var nom = document.getElementById('id_nom_passager');
+    if (!tel || !nom) return;
+    tel.addEventListener('blur', function(){
+      var val = tel.value.trim();
+      if (!val || nom.value.trim()) return;
+      fetch('/api/passager/' + encodeURIComponent(val) + '/')
+        .then(function(r){ return r.json(); })
+        .then(function(data){
+          if (data.nom) { nom.value = data.nom; }
+        })
+        .catch(function(){});
+    });
+  })();
+</script>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+  input[type=text], input[type=number], input[type=tel], input[type=email], select{
+    width:100%; border:1px solid var(--dock-sand); border-radius:0.5rem; padding:0.625rem 0.75rem; background:#fff;
+  }
+  input:focus, select:focus{outline:2px solid var(--sunset); outline-offset:2px;}
+</style>
+{% endblock %}
