@@ -13,7 +13,9 @@ urlpatterns = [
 
     # Compte passager
     path('compte/inscription/', views.compte_inscription, name='compte_inscription'),
+    path('compte/inscription/supabase/', views.compte_inscription_supabase, name='compte_inscription_supabase'),
     path('compte/connexion/', views.compte_connexion, name='compte_connexion'),
+    path('compte/connexion/supabase/', views.compte_connexion_supabase, name='compte_connexion_supabase'),
     path('compte/deconnexion/', views.compte_deconnexion, name='compte_deconnexion'),
     path('compte/', views.compte_dashboard, name='compte_dashboard'),
 

@@ -13,6 +13,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from . import cinetpay
+from .auth_backends import SupabaseAuthentication
 from .decorators import admin_required, agent_required, est_administrateur, passager_connecte, passager_required
 from .forms import (
     RechercheForm, ReservationForm, ReservationComptoirForm, MesBilletsForm,
@@ -21,6 +22,7 @@ from .forms import (
 )
 from .models import Route, Bateau, Traversee, Reservation, Passager
 from .notifications import envoyer_billet_email, alerter_admin_traversee_pleine
+from .supabase_client import sign_up as supabase_sign_up, sign_in as supabase_sign_in, sign_out as supabase_sign_out
 
 
 # ---------------------------------------------------------------------
@@ -225,6 +227,38 @@ def compte_inscription(request):
     return render(request, 'reservations/compte_inscription.html', {'form': form})
 
 
+def compte_inscription_supabase(request):
+    """Inscription passager via Supabase Auth (email + mot de passe)."""
+    if passager_connecte(request):
+        return redirect('compte_dashboard')
+
+    form = PassagerInscriptionForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        email = form.cleaned_data['email'] or f"{form.cleaned_data['telephone']}@passager.silimu"
+        user_data = {
+            "nom_complet": form.cleaned_data['nom_complet'],
+            "telephone": form.cleaned_data['telephone'],
+        }
+        response, error = supabase_sign_up(email, form.cleaned_data['mot_de_passe'], user_data)
+        if error:
+            messages.error(request, f"Inscription Supabase échouée : {error}")
+            return render(request, 'reservations/compte_inscription.html', {'form': form})
+
+        passager = Passager(
+            nom_complet=form.cleaned_data['nom_complet'],
+            telephone=form.cleaned_data['telephone'],
+            email=form.cleaned_data['email'],
+        )
+        passager.definir_mot_de_passe(form.cleaned_data['mot_de_passe'])
+        passager.save()
+        Reservation.objects.filter(telephone=passager.telephone, passager__isnull=True).update(passager=passager)
+        request.session['passager_id'] = passager.id
+        messages.success(request, f"Bienvenue {passager.nom_complet} ! Votre compte Supabase est créé.")
+        return redirect('compte_dashboard')
+
+    return render(request, 'reservations/compte_inscription.html', {'form': form, 'supabase': True})
+
+
 def compte_connexion(request):
     if passager_connecte(request):
         return redirect('compte_dashboard')
@@ -242,7 +276,40 @@ def compte_connexion(request):
     return render(request, 'reservations/compte_connexion.html', {'form': form})
 
 
+def compte_connexion_supabase(request):
+    """Connexion passager via Supabase Auth (email + mot de passe)."""
+    if passager_connecte(request):
+        return redirect('compte_dashboard')
+
+    form = PassagerConnexionForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        telephone = form.cleaned_data['telephone'].strip()
+        email = request.POST.get('email', '')
+        mot_de_passe = form.cleaned_data['mot_de_passe']
+
+        identifiant = email or f"{telephone}@passager.silimu"
+        response, error = supabase_sign_in(identifiant, mot_de_passe)
+        if error:
+            messages.error(request, "Identifiants Supabase incorrects.")
+            return render(request, 'reservations/compte_connexion.html', {'form': form})
+
+        passager = Passager.objects.filter(telephone=telephone).first()
+        if passager:
+            Reservation.objects.filter(telephone=passager.telephone, passager__isnull=True).update(passager=passager)
+            request.session['passager_id'] = passager.id
+            request.session['supabase_token'] = response.session.access_token if hasattr(response, 'session') else None
+            return redirect('compte_dashboard')
+
+        messages.error(request, "Aucun compte passager trouvé.")
+        return render(request, 'reservations/compte_connexion.html', {'form': form})
+
+    return render(request, 'reservations/compte_connexion.html', {'form': form, 'supabase': True})
+
+
 def compte_deconnexion(request):
+    supabase_token = request.session.pop('supabase_token', None)
+    if supabase_token:
+        supabase_sign_out(supabase_token)
     request.session.pop('passager_id', None)
     return redirect('home')
 

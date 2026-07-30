@@ -6,7 +6,10 @@ de billets de transport lacustre — cas de l'établissement SILIMU.
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / '.env')
 
 # --------------------------------------------------------------------
 # Sécurité
@@ -68,10 +71,26 @@ WSGI_APPLICATION = 'silimu.wsgi.application'
 ASGI_APPLICATION = 'silimu.asgi.application'
 
 # --------------------------------------------------------------------
-# Base de données — PostgreSQL / SQLite
+# Base de données — Supabase PostgreSQL / PostgreSQL autonome / SQLite
 # --------------------------------------------------------------------
-DB_ENGINE = os.environ.get('DB_ENGINE', '')
-if DB_ENGINE.lower() in ('postgresql', 'postgres', 'psql') or os.environ.get('DB_HOST'):
+# Si SUPABASE_URL est défini, on utilise la chaîne de connexion Supabase.
+# Sinon, on utilise les variables DB_* classiques, ou SQLite par défaut.
+SUPABASE_DATABASE_URL = os.environ.get('SUPABASE_DATABASE_URL', '')
+if SUPABASE_DATABASE_URL:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.environ.get('DB_NAME', 'postgres'),
+            'USER': os.environ.get('DB_USER', 'postgres'),
+            'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+            'HOST': os.environ.get('DB_HOST', 'db.<votre-projet>.supabase.co'),
+            'PORT': os.environ.get('DB_PORT', '5432'),
+            'OPTIONS': {
+                'sslmode': 'require',
+            },
+        }
+    }
+elif os.environ.get('DB_ENGINE', '').lower() in ('postgresql', 'postgres', 'psql') or os.environ.get('DB_HOST'):
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
@@ -149,6 +168,21 @@ EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'SILIMU <no-reply@silimu.local>')
 
+# --------------------------------------------------------------------
+# Supabase — Base de données PostgreSQL, Auth & Storage
+# --------------------------------------------------------------------
+# 1. Crée un projet sur https://supabase.com
+# 2. Récupère les identifiants dans Settings > API
+SUPABASE_URL = os.environ.get('SUPABASE_URL', '')
+SUPABASE_ANON_KEY = os.environ.get('SUPABASE_ANON_KEY', '')
+SUPABASE_SERVICE_ROLE_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '')
+# Nom du bucket Storage pour les billets / QR codes
+SUPABASE_STORAGE_BUCKET = os.environ.get('SUPABASE_STORAGE_BUCKET', 'billets')
+# Durée de validité du lien signé (secondes)
+SUPABASE_STORAGE_EXPIRY = int(os.environ.get('SUPABASE_STORAGE_EXPIRY', '3600'))
+# Collection Supabase Auth mappée au modèle Passager (via auth.users)
+SUPABASE_AUTH_TABLE = os.environ.get('SUPABASE_AUTH_TABLE', 'passagers')
+
 # Adresse recevant les alertes de remplissage et autres notifications internes
 ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', '')
 # Taux de remplissage (%) déclenchant l'alerte automatique
@@ -160,6 +194,11 @@ RAPPEL_HEURES_AVANT = int(os.environ.get('RAPPEL_HEURES_AVANT', '24'))
 # API REST (Django REST Framework)
 # --------------------------------------------------------------------
 REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'reservations.auth_backends.SupabaseAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
+    ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
     ],
