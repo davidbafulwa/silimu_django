@@ -1,27 +1,36 @@
 {% extends "reservations/base.html" %}
+{% load static %}
 {% block title %}Mes billets — SILIMU{% endblock %}
 
 {% block content %}
-<section class="pt-14 pb-6">
-  <div class="font-mono text-xs tracking-[0.25em] text-sunset uppercase mb-3">Espace passager</div>
-  <h1 class="font-display text-3xl font-bold text-lake mb-2">Retrouver mes billets</h1>
-  <p class="text-teal-800/70 max-w-lg mb-2">Entrez votre code de réservation (ex: SLM-AB12-3456) ou votre numéro de téléphone utilisé lors de la réservation.</p>
-  <p class="text-xs text-teal-800/60 mb-6">Ou <a href="{% url 'compte_connexion' %}" class="text-sunset font-semibold hover:underline">connectez-vous à votre compte</a> pour retrouver tous vos billets automatiquement.</p>
-  <form method="get" class="flex gap-3 max-w-lg">
-    <input type="text" name="q" value="{{ form.q.value|default:'' }}" placeholder="Code ou téléphone" class="focus-ring flex-1 border border-dock rounded-lg px-3 py-2.5 bg-white">
-    <button type="submit" class="bg-lake text-white font-semibold rounded-lg px-5 py-2.5">Rechercher</button>
-  </form>
-</section>
+<div class="py-12 max-w-4xl mx-auto">
+  <section class="mb-10 reveal">
+    <div class="kicker mb-3">Espace passager</div>
+    <h1 class="font-display text-3xl md:text-4xl font-bold text-navy mb-3">Retrouver mes billets</h1>
+    <p class="text-ink/60 max-w-lg mb-2">Entrez votre code de réservation (ex: SLM-AB12-3456) ou votre numéro de téléphone utilisé lors de la réservation.</p>
+    <p class="text-xs text-ink/50 mb-6">Ou <a href="{% url 'compte_connexion' %}" class="text-sunset font-bold hover:underline">connectez-vous à votre compte</a> pour retrouver tous vos billets automatiquement.</p>
+    <form method="get" class="flex gap-3 max-w-lg">
+      <input type="text" name="q" value="{{ form.q.value|default:'' }}" placeholder="Code ou téléphone" class="input flex-1">
+      <button type="submit" class="btn btn-dark px-6 py-3">Rechercher</button>
+    </form>
+  </section>
 
-<div class="grid md:grid-cols-2 gap-6 mt-4">
-  {% if request.GET.q and not resultats %}
-    <div class="md:col-span-2 text-center py-16 border-2 border-dashed border-dock rounded-2xl text-teal-800/60">Aucun billet trouvé pour cette recherche.</div>
-  {% elif not resultats %}
-    <div class="md:col-span-2 text-center py-16 border-2 border-dashed border-dock rounded-2xl text-teal-800/60">Aucun billet à afficher pour le moment.</div>
-  {% else %}
-    {% for reservation in resultats %}
-      {% include "reservations/_ticket_card.html" %}
-    {% endfor %}
-  {% endif %}
+  <div class="grid md:grid-cols-2 gap-6 reveal" style="--d:.1s">
+    {% if request.GET.q and not resultats %}
+      <div class="md:col-span-2 text-center py-16 border-2 border-dashed border-dock rounded-3xl text-ink/40">
+        <div class="text-4xl mb-3">🔍</div>
+        Aucun billet trouvé pour cette recherche.
+      </div>
+    {% elif not resultats %}
+      <div class="md:col-span-2 text-center py-16 border-2 border-dashed border-dock rounded-3xl text-ink/40">
+        <div class="text-4xl mb-3">🎫</div>
+        Aucun billet à afficher pour le moment.
+      </div>
+    {% else %}
+      {% for reservation in resultats %}
+        {% include "reservations/_ticket_card.html" %}
+      {% endfor %}
+    {% endif %}
+  </div>
 </div>
 {% endblock %}

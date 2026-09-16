@@ -1,0 +1,28 @@
+<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;">
+  <div style="background:#E8734A;color:#fff;padding:24px;border-radius:12px 12px 0 0;">
+    <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#ffe3d1;">Annulation de réservation</div>
+    <div style="font-size:22px;font-weight:bold;margin-top:4px;">SILIMU</div>
+    <div style="margin-top:16px;font-size:18px;">
+      {{ reservation.traversee.route.port_depart }} <span style="color:#fff;">→</span> {{ reservation.traversee.route.port_arrivee }}
+    </div>
+  </div>
+  <div style="background:#fff;border:1px solid #eee;border-top:none;padding:24px;border-radius:0 0 12px 12px;">
+    <p>Bonjour {{ reservation.nom_passager }},</p>
+    <p>Votre réservation a été <strong style="color:#B23A00;">annulée</strong>. Voici le détail :</p>
+    <table style="width:100%;font-size:14px;border-collapse:collapse;margin-top:12px;">
+      <tr><td style="padding:6px 0;color:#666;">Date</td><td style="text-align:right;font-weight:bold;">{{ reservation.traversee.date }}</td></tr>
+      <tr><td style="padding:6px 0;color:#666;">Heure</td><td style="text-align:right;font-weight:bold;">{{ reservation.traversee.heure }}</td></tr>
+      <tr><td style="padding:6px 0;color:#666;">Bateau</td><td style="text-align:right;font-weight:bold;">{{ reservation.traversee.bateau.nom }}</td></tr>
+      <tr><td style="padding:6px 0;color:#666;">Places</td><td style="text-align:right;font-weight:bold;">{{ reservation.nb_places }}</td></tr>
+      <tr><td style="padding:6px 0;color:#666;">Total</td><td style="text-align:right;font-weight:bold;">{{ reservation.total }} FC</td></tr>
+    </table>
+    <div style="text-align:center;margin-top:20px;padding:16px;border:2px dashed #E8734A;border-radius:8px;">
+      <div style="font-size:12px;color:#666;text-transform:uppercase;letter-spacing:2px;">Code du billet</div>
+      <div style="font-size:20px;font-weight:bold;color:#B23A00;letter-spacing:3px;margin-top:4px;">{{ reservation.code }}</div>
+    </div>
+    <p style="margin-top:20px;font-size:13px;color:#666;">
+      Si un paiement avait été effectué, notre équipe vous contactera pour organiser le remboursement ou le report sur une autre traversée.
+    </p>
+    <p style="margin-top:16px;font-size:12px;color:#999;">SILIMU — contact@silimu.cd · +243 990 000 000 (Bukavu &amp; Goma)</p>
+  </div>
+</div>

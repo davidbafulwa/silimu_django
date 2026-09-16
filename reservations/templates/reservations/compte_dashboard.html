@@ -2,25 +2,37 @@
 {% load humanize %}
 {% block title %}Mon compte — SILIMU{% endblock %}
 {% block content %}
-<section class="pt-14 pb-6">
-  <div class="flex items-center justify-between flex-wrap gap-3">
-    <div>
-      <div class="font-mono text-xs tracking-[0.25em] text-sunset uppercase mb-2">Espace passager</div>
-      <h1 class="font-display text-3xl font-bold text-lake">Bonjour {{ passager.nom_complet }}</h1>
-      <p class="text-teal-800/70 text-sm mt-1">{{ passager.telephone }}{% if passager.email %} · {{ passager.email }}{% endif %}</p>
+<div class="py-12 max-w-5xl mx-auto">
+  <section class="mb-10 reveal">
+    <div class="flex items-center justify-between flex-wrap gap-3">
+      <div class="flex items-center gap-4">
+        <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-teal to-aqua flex items-center justify-center font-display text-xl font-extrabold text-white">
+          {{ passager.nom_complet|truncatechars:1 }}
+        </div>
+        <div>
+          <div class="kicker mb-1">Espace passager</div>
+          <h1 class="font-display text-2xl md:text-3xl font-bold text-navy">Bonjour {{ passager.nom_complet }}</h1>
+          <p class="text-ink/55 text-sm mt-1">{{ passager.telephone }}{% if passager.email %} · {{ passager.email }}{% endif %}</p>
+        </div>
+      </div>
+      <a href="{% url 'compte_deconnexion' %}" class="text-sm text-ink/50 hover:text-red-500 transition font-semibold">Se déconnecter →</a>
     </div>
-    <a href="{% url 'compte_deconnexion' %}" class="text-sm text-teal-700 hover:underline">Se déconnecter</a>
-  </div>
-</section>
+  </section>
 
-<h2 class="font-display text-lg font-bold text-lake mb-3">Mes réservations ({{ reservations|length }})</h2>
-<div class="grid md:grid-cols-2 gap-6">
-  {% for reservation in reservations %}
-    {% include "reservations/_ticket_card.html" %}
-  {% empty %}
-    <div class="md:col-span-2 text-center py-16 border-2 border-dashed border-dock rounded-2xl text-teal-800/60">
-      Aucune réservation pour le moment. <a href="{% url 'home' %}" class="text-sunset font-semibold hover:underline">Réserver un billet</a>
-    </div>
-  {% endfor %}
+  <div class="flex items-center justify-between mb-4 reveal" style="--d:.1s">
+    <h2 class="font-display text-lg font-bold text-navy">Mes réservations ({{ reservations|length }})</h2>
+    <a href="{% url 'mes_billets' %}" class="text-sm text-teal font-semibold hover:text-navy transition">Retrouver par code →</a>
+  </div>
+  <div class="grid md:grid-cols-2 gap-6 reveal" style="--d:.15s">
+    {% for reservation in reservations %}
+      {% include "reservations/_ticket_card.html" %}
+    {% empty %}
+      <div class="md:col-span-2 text-center py-16 border-2 border-dashed border-dock rounded-3xl text-ink/40">
+        <div class="text-4xl mb-3">🌊</div>
+        Aucune réservation pour le moment.
+        <a href="{% url 'home' %}" class="text-sunset font-bold hover:underline">Réserver un billet</a>
+      </div>
+    {% endfor %}
+  </div>
 </div>
 {% endblock %}

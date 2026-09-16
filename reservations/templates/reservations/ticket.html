@@ -1,38 +1,41 @@
 {% extends "reservations/base.html" %}
-{% block title %}Billet {{ reservation.code }}{% endblock %}
+{% block title %}Billet {{ reservation.code }} — SILIMU{% endblock %}
 
 {% block content %}
 <div class="py-10">
   {% if confirmation %}
-    <div class="text-center mb-8">
-      <div class="font-mono text-xs tracking-[0.25em] text-sunset uppercase mb-2">
-        {% if reservation.statut == 'CONFIRME' %}Paiement confirmé
-        {% elif reservation.statut == 'EN_ATTENTE' %}Paiement en cours
-        {% else %}Paiement non abouti{% endif %}
+    <div class="text-center mb-8 reveal">
+      <div class="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl
+        {% if reservation.statut == 'CONFIRME' %}bg-emerald-50
+        {% elif reservation.statut == 'EN_ATTENTE' %}bg-amber-50
+        {% else %}bg-red-50{% endif %}">
+        {% if reservation.statut == 'CONFIRME' %}✅
+        {% elif reservation.statut == 'EN_ATTENTE' %}⏳
+        {% else %}❌{% endif %}
       </div>
       {% if reservation.statut == 'CONFIRME' %}
-        <h1 class="font-display text-3xl font-bold text-lake">Bon voyage sur le lac 🌊</h1>
-        <p class="text-teal-800/70 mt-2 text-sm">Conservez le code ci-dessous, il vous sera demandé à l'embarquement.</p>
+        <h1 class="font-display text-3xl font-bold text-navy">Bon voyage sur le lac !</h1>
+        <p class="text-ink/60 mt-2 text-sm">Conservez le code ci-dessous, il vous sera demandé à l'embarquement.</p>
       {% elif reservation.statut == 'EN_ATTENTE' %}
-        <h1 class="font-display text-3xl font-bold text-lake">Paiement en cours de vérification</h1>
-        <p class="text-teal-800/70 mt-2 text-sm">Si vous avez déjà payé, actualisez cette page dans quelques instants.</p>
+        <h1 class="font-display text-3xl font-bold text-navy">Paiement en cours de vérification</h1>
+        <p class="text-ink/60 mt-2 text-sm">Si vous avez déjà payé, actualisez cette page dans quelques instants.</p>
       {% else %}
-        <h1 class="font-display text-3xl font-bold text-lake">Le paiement n'a pas abouti</h1>
-        <p class="text-teal-800/70 mt-2 text-sm">Vos places n'ont pas été bloquées. Vous pouvez réessayer une nouvelle réservation.</p>
+        <h1 class="font-display text-3xl font-bold text-navy">Le paiement n'a pas abouti</h1>
+        <p class="text-ink/60 mt-2 text-sm">Vos places n'ont pas été bloquées. Vous pouvez réessayer une nouvelle réservation.</p>
       {% endif %}
     </div>
   {% endif %}
 
-  <div class="max-w-md mx-auto">
+  <div class="max-w-md mx-auto reveal" style="--d:.1s">
     {% include "reservations/_ticket_card.html" %}
   </div>
 
-  <div class="flex gap-3 justify-center mt-8 no-print">
+  <div class="flex gap-3 justify-center mt-8 no-print reveal" style="--d:.2s">
     {% if reservation.statut == 'EN_ATTENTE' %}
-      <a href="{% url 'paiement_retour' reservation.code %}" class="bg-lake text-white font-semibold rounded-lg px-5 py-2.5">Actualiser le statut</a>
+      <a href="{% url 'paiement_retour' reservation.code %}" class="btn btn-dark px-6 py-3">Actualiser le statut</a>
     {% endif %}
-    <button onclick="window.print()" class="border border-lake text-lake font-semibold rounded-lg px-5 py-2.5">Imprimer</button>
-    <a href="{% url 'home' %}" class="bg-sunset text-white font-semibold rounded-lg px-5 py-2.5">Nouvelle réservation</a>
+    <button onclick="window.print()" class="btn btn-outline px-6 py-3">Imprimer</button>
+    <a href="{% url 'home' %}" class="btn btn-primary px-6 py-3">Nouvelle réservation</a>
   </div>
 </div>
 {% endblock %}

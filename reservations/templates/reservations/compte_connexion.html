@@ -1,23 +1,44 @@
 {% extends "reservations/base.html" %}
+{% load static %}
 {% block title %}Connexion — SILIMU{% endblock %}
 {% block content %}
-<div class="max-w-sm mx-auto py-16">
-  <div class="bg-white rounded-2xl shadow-xl border border-black/5 p-6">
-    <div class="font-mono text-xs tracking-[0.25em] text-sunset uppercase mb-2">Espace passager</div>
-    <h2 class="font-display text-2xl font-bold text-lake mb-1">Se connecter</h2>
-    <p class="text-sm text-teal-800/70 mb-5">Retrouvez votre historique de réservations.</p>
-    <form method="post" novalidate class="space-y-3">
-      {% csrf_token %}
-      {% for field in form %}
-        <div>
-          <label class="block font-mono text-[11px] uppercase tracking-widest text-teal-700 mb-1.5">{{ field.label }}</label>
-          {{ field }}
-          {% if field.errors %}<p class="text-red-500 text-xs mt-1">{{ field.errors|striptags }}</p>{% endif %}
+<div class="max-w-5xl mx-auto py-12">
+  <div class="card overflow-hidden grid lg:grid-cols-2 shadow-lift">
+    <div class="relative min-h-[260px] hidden lg:block">
+      <img src="{% static 'img/lac_vert.jpg' %}" alt="Vue sur le lac Kivu" class="absolute inset-0 w-full h-full object-cover">
+      <div class="absolute inset-0 bg-gradient-to-t from-navy/95 via-navy/40 to-transparent"></div>
+      <div class="absolute bottom-0 p-8 text-white">
+        <h3 class="font-display text-2xl font-bold">Ravi de vous revoir !</h3>
+        <p class="text-white/80 text-sm mt-2">Tous vos billets, votre historique de réservations et vos rappels de départ au même endroit.</p>
+      </div>
+    </div>
+    <div class="p-7 md:p-10">
+      <div class="kicker mb-2">Espace passager</div>
+      <h1 class="font-display text-2xl md:text-3xl font-bold text-navy">Se connecter</h1>
+      <p class="text-sm text-navy/60 mb-6">Retrouvez votre historique de réservations.</p>
+
+      {% if supabase %}
+        <div class="bg-aqua/8 border border-aqua/20 rounded-2xl px-4 py-3 text-xs text-teal mb-4">
+          ✨ Connexion via <strong>Supabase Auth</strong> — saisissez votre e-mail ou votre téléphone.
         </div>
-      {% endfor %}
-      <button type="submit" class="w-full bg-lake text-white font-semibold rounded-lg px-4 py-2.5 mt-2">Se connecter</button>
-    </form>
-    <p class="text-sm text-teal-800/70 mt-4 text-center">Pas encore de compte ? <a href="{% url 'compte_inscription' %}" class="text-sunset font-semibold hover:underline">S'inscrire</a></p>
+      {% endif %}
+
+      <form method="post" novalidate class="form-card space-y-4">
+        {% csrf_token %}
+        {% if form.non_field_errors %}<p class="text-red-500 text-xs font-semibold">{{ form.non_field_errors|striptags }}</p>{% endif %}
+        {% for field in form %}
+          <div>
+            <label class="label">{{ field.label }}</label>
+            {{ field }}
+            {% if field.errors %}<p class="text-red-500 text-xs mt-1.5 font-semibold">{{ field.errors|striptags }}</p>{% endif %}
+          </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-primary w-full py-3.5 mt-2">Se connecter</button>
+      </form>
+
+      <p class="text-sm text-navy/60 mt-5 text-center">Pas encore de compte ?
+        <a href="{% url 'compte_inscription' %}" class="text-teal font-bold hover:underline">S'inscrire</a></p>
+    </div>
   </div>
 </div>
 {% endblock %}
@@ -25,7 +46,9 @@
 {% block extra_head %}
 <style>
   input[type=text], input[type=password]{
-    width:100%; border:1px solid var(--dock-sand); border-radius:0.5rem; padding:0.625rem 0.75rem;
+    width:100%; border:1.5px solid #d8c9a8; border-radius:.8rem; padding:.72rem .95rem;
+    font-size:.95rem; color:#123140;
   }
+  input:focus{outline:none; border-color:#0fb5b0; box-shadow:0 0 0 4px rgba(15,181,176,.15);}
 </style>
 {% endblock %}

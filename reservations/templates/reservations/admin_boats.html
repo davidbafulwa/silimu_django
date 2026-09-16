@@ -4,9 +4,9 @@
 <div class="pt-8">
   {% include "reservations/_admin_nav.html" with active="boats" %}
 
-  <div class="bg-white rounded-xl p-5 shadow border border-black/5 mb-6">
-    <div class="font-mono text-xs uppercase tracking-widest text-teal-700 mb-3">Ajouter un bateau</div>
-    <form method="post" class="grid grid-cols-2 md:grid-cols-4 gap-3">
+  <div class="card p-5 mb-6">
+    <div class="kicker mb-3">Ajouter un bateau</div>
+    <form method="post" class="admin-form grid grid-cols-2 md:grid-cols-4 gap-3">
       {% csrf_token %}
       {% for field in form %}
         <div>
@@ -14,32 +14,32 @@
           {% if field.errors %}<p class="text-red-500 text-xs mt-1">{{ field.errors|striptags }}</p>{% endif %}
         </div>
       {% endfor %}
-      <button type="submit" class="bg-sunset text-white font-semibold rounded-lg px-3 py-2 text-sm">Ajouter</button>
+      <button type="submit" class="btn btn-primary px-4 py-2.5 text-sm h-fit">Ajouter</button>
     </form>
   </div>
 
-  <div class="bg-white rounded-xl shadow border border-black/5 overflow-hidden">
+  <div class="card overflow-hidden">
     <table class="w-full text-sm">
-      <thead class="bg-lake text-white font-mono text-xs uppercase"><tr>
+      <thead class="bg-navy text-white font-mono text-xs uppercase"><tr>
         <th class="text-left px-4 py-3">Nom</th><th class="text-left px-4 py-3">Type</th><th class="text-left px-4 py-3">Capacité</th><th class="text-left px-4 py-3">État</th><th class="px-4 py-3"></th>
       </tr></thead>
-      <tbody class="divide-y">
+      <tbody class="divide-y divide-navy/5">
         {% for b in bateaux %}
-        <tr>
-          <td class="px-4 py-3 font-medium">{{ b.nom }}</td>
+        <tr class="board-row">
+          <td class="px-4 py-3 font-semibold text-navy">{{ b.nom }}</td>
           <td class="px-4 py-3">{{ b.get_type_bateau_display }}</td>
           <td class="px-4 py-3">{{ b.capacite }} places</td>
           <td class="px-4 py-3">
             {% if b.en_service %}
-              <span class="text-emerald-600 font-semibold text-xs">En service</span>
+              <span class="bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-full px-3 py-1">En service</span>
             {% else %}
-              <span class="text-amber-600 font-semibold text-xs">En maintenance</span>
+              <span class="bg-amber-100 text-amber-700 text-xs font-semibold rounded-full px-3 py-1">En maintenance</span>
             {% endif %}
           </td>
           <td class="px-4 py-3 text-right space-x-3">
             <form method="post" action="{% url 'admin_boat_toggle_service' b.id %}" class="inline">
               {% csrf_token %}
-              <button type="submit" class="text-teal-700 text-xs font-semibold hover:underline">
+              <button type="submit" class="text-teal text-xs font-semibold hover:text-navy transition">
                 {% if b.en_service %}Mettre en maintenance{% else %}Remettre en service{% endif %}
               </button>
             </form>
@@ -53,12 +53,6 @@
       </tbody>
     </table>
   </div>
-  <p class="text-xs text-teal-800/60 mt-3">Un bateau « en maintenance » n'apparaît plus dans les résultats de recherche, ni au comptoir, ni dans la liste des bateaux disponibles pour programmer une nouvelle traversée.</p>
+  <p class="text-xs text-ink/50 mt-3">Un bateau « en maintenance » n'apparaît plus dans les résultats de recherche, ni au comptoir, ni dans la liste des bateaux disponibles pour programmer une nouvelle traversée.</p>
 </div>
-{% endblock %}
-
-{% block extra_head %}
-<style>
-  input[type=text], input[type=number], select{ width:100%; border:1px solid var(--dock-sand); border-radius:0.5rem; padding:0.5rem 0.75rem; font-size:0.875rem; }
-</style>
 {% endblock %}

@@ -1,13 +1,18 @@
-<div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+{% load humanize %}
+<div class="flex items-center justify-between mb-6 flex-wrap gap-3 reveal">
   <div>
-    <h1 class="font-display text-2xl font-bold text-lake">Back-office SILIMU</h1>
-    <p class="text-xs text-teal-700 font-mono mt-1">
-      Connecté en tant que {{ request.user.username }} · {% if is_admin %}Administrateur{% else %}Agent guichet{% endif %}
+    <div class="kicker mb-1">Interface professionnelle</div>
+    <h1 class="font-display text-2xl font-bold text-navy">Back-office SILIMU</h1>
+    <p class="text-xs text-ink/50 font-mono mt-1">
+      {{ request.user.username }} · {% if is_admin %}Administrateur{% else %}Agent guichet{% endif %}
     </p>
   </div>
-  <a href="{% url 'admin_logout' %}" class="text-sm text-teal-700 hover:underline">Se déconnecter</a>
+  <div class="flex items-center gap-3">
+    <a href="{% url 'home' %}" class="text-sm text-teal font-semibold hover:text-navy transition hidden sm:block">Voir le site →</a>
+    <a href="{% url 'admin_logout' %}" class="btn btn-outline px-4 py-2 text-sm">Se déconnecter</a>
+  </div>
 </div>
-<div class="flex gap-1 bg-white rounded-full p-1 w-fit mb-6 shadow border border-black/5 overflow-x-auto">
+<div class="flex gap-1 bg-white rounded-full p-1 w-fit mb-6 shadow-soft border border-navy/5 overflow-x-auto no-print">
   <a href="{% url 'admin_comptoir' %}" class="tab-btn {% if active == 'comptoir' %}active{% endif %} px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap">Comptoir</a>
   <a href="{% url 'admin_bookings' %}" class="tab-btn {% if active == 'bookings' %}active{% endif %} px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap">Réservations</a>
   {% if is_admin %}

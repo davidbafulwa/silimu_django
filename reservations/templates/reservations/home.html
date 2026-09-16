@@ -1,110 +1,410 @@
 {% extends "reservations/base.html" %}
-{% load humanize %}
-{% block title %}SILIMU — Réserver un billet{% endblock %}
+{% load static humanize %}
+{% block title %}SILIMU — Réserver un billet de bateau au Kivu{% endblock %}
+
+{% block hero %}
+<!-- ═══════════════════════════════════════════════════════════════
+     HERO — Plein écran avec image du lac + moteur de recherche
+     ═══════════════════════════════════════════════════════════════ -->
+<section class="relative min-h-[600px] md:min-h-[680px] flex items-end md:items-center overflow-hidden">
+  <div class="absolute inset-0">
+    <img src="{% static 'img/hero.jpg' %}" alt="Traversée sur le lac Kivu" class="w-full h-full object-cover" loading="eager">
+    <div class="absolute inset-0 bg-gradient-to-r from-deep/90 via-deep/60 to-deep/20"></div>
+    <div class="absolute inset-0 bg-gradient-to-t from-deep/80 via-transparent to-transparent md:from-transparent md:via-transparent"></div>
+  </div>
+
+  <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 pb-16 pt-24 w-full">
+    <div class="max-w-2xl reveal">
+      <span class="kicker">🚢 Transport lacustre — Sud-Kivu &amp; Nord-Kivu</span>
+      <h1 class="font-display text-4xl md:text-6xl font-extrabold text-white leading-[1.08] mt-4 mb-5">
+        Traversez le lac.<br>
+        <span class="title-grad">Réservez en deux minutes.</span>
+      </h1>
+      <p class="text-lg md:text-xl text-white/75 max-w-lg mb-8 leading-relaxed">
+        Billets de bateau en ligne entre Bukavu, Goma, Idjwi, Minova, Uvira et Kalemie. Paiement Mobile Money ou carte bancaire. E-billet immédiat.
+      </p>
+      <div class="flex flex-wrap gap-3 mb-10">
+        <a href="#recherche" class="btn btn-primary px-7 py-3.5 text-[15px]">Rechercher un trajet</a>
+        <a href="{% url 'mes_billets' %}" class="btn btn-ghost px-6 py-3.5 text-[15px]">Retrouver mon billet</a>
+      </div>
+      <div class="flex items-center gap-4 text-white/60 text-sm flex-wrap">
+        <span class="flex items-center gap-1.5"><span class="text-emerald-400">✓</span> Paiement sécurisé CinetPay</span>
+        <span class="flex items-center gap-1.5"><span class="text-emerald-400">✓</span> QR code embarquement</span>
+        <span class="flex items-center gap-1.5"><span class="text-emerald-400">✓</span> Support 7j/7</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Vague décorative -->
+  <div class="absolute bottom-0 left-0 right-0 h-16 md:h-24" aria-hidden="true">
+    <svg viewBox="0 0 1440 96" preserveAspectRatio="none" class="w-full h-full fill-paper">
+      <path d="M0,64 C240,96 480,0 720,48 C960,96 1200,16 1440,48 L1440,96 L0,96 Z"/>
+    </svg>
+  </div>
+</section>
+{% endblock %}
+
+{% block main_class %}max-w-7xl mx-auto px-4 sm:px-6 pb-24 w-full{% endblock %}
 
 {% block content %}
-<section class="pt-14 pb-10">
-  <div class="font-mono text-xs tracking-[0.25em] text-sunset uppercase mb-3">Établissement SILIMU · Guichet en ligne</div>
-  <h1 class="font-display text-4xl md:text-5xl font-bold text-lake leading-[1.05] max-w-2xl">Traversez le lac.<br>Réservez votre billet en deux minutes.</h1>
-  <p class="text-teal-800/70 mt-4 max-w-lg">Choisissez votre port de départ, votre destination et votre date. Le tableau des départs affiche en temps réel les places disponibles à bord.</p>
-</section>
-
-<section class="bg-white rounded-2xl shadow-xl border border-black/5 p-5 md:p-6 -mt-2 mb-10">
-  <form method="get" class="grid grid-cols-1 md:grid-cols-4 gap-4">
-    <div>
-      <label class="block font-mono text-[11px] uppercase tracking-widest text-teal-700 mb-1.5">Départ</label>
-      <select name="depart" class="focus-ring w-full border border-dock rounded-lg px-3 py-2.5 bg-paper text-lake font-medium">
-        <option value="">Tous les ports</option>
-        {% for p in ports %}
-          <option value="{{ p }}" {% if form.depart.value == p %}selected{% endif %}>{{ p }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div>
-      <label class="block font-mono text-[11px] uppercase tracking-widest text-teal-700 mb-1.5">Arrivée</label>
-      <select name="arrivee" class="focus-ring w-full border border-dock rounded-lg px-3 py-2.5 bg-paper text-lake font-medium">
-        <option value="">Toutes destinations</option>
-        {% for p in ports %}
-          <option value="{{ p }}" {% if form.arrivee.value == p %}selected{% endif %}>{{ p }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div>
-      <label class="block font-mono text-[11px] uppercase tracking-widest text-teal-700 mb-1.5">Date</label>
-      <input type="date" name="date" value="{{ form.date.value|default:'' }}" class="focus-ring w-full border border-dock rounded-lg px-3 py-2.5 bg-paper text-lake font-medium">
-    </div>
-    <div class="flex items-end">
-      <button type="submit" class="w-full bg-sunset hover:brightness-95 text-white font-semibold rounded-lg px-4 py-2.5 transition">Rechercher</button>
-    </div>
-  </form>
-</section>
-
-{% if resultats is not None %}
-  {% if resultats %}
-    <div class="mb-3 flex items-center justify-between">
-      <h2 class="font-display text-xl font-bold text-lake">Tableau des départs</h2>
-      <span class="font-mono text-xs text-teal-700">{{ resultats|length }} traversée(s)</span>
-    </div>
-    <div class="bg-lake rounded-2xl overflow-hidden shadow-xl">
-      <div class="hidden md:grid grid-cols-12 gap-2 px-5 py-3 font-mono text-[11px] uppercase tracking-widest text-teal-200 border-b border-white/10">
-        <div class="col-span-2">Heure</div>
-        <div class="col-span-3">Ligne</div>
-        <div class="col-span-2">Bateau</div>
-        <div class="col-span-2">Durée</div>
-        <div class="col-span-1">Places</div>
-        <div class="col-span-1">Prix</div>
-        <div class="col-span-1"></div>
+<!-- ═══════════════════════════════════════════════════════════════
+     MOTEUR DE RECHERCHE
+     ═══════════════════════════════════════════════════════════════ -->
+<section id="recherche" class="relative -mt-24 md:-mt-16 z-20 mb-16 reveal">
+  <div class="card p-5 md:p-7">
+    <form method="get" class="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_auto] gap-4 items-end">
+      <div>
+        <label class="label">Départ</label>
+        <select name="depart" class="input">
+          <option value="">Tous les ports</option>
+          {% for p in ports %}
+            <option value="{{ p }}" {% if form.depart.value == p %}selected{% endif %}>{{ p }}</option>
+          {% endfor %}
+        </select>
       </div>
-      <div class="divide-y divide-white/10">
-        {% for t in resultats %}
-          {# ---- ligne desktop (>= md) ---- #}
-          <div class="board-row hidden md:grid grid-cols-12 gap-2 px-5 py-4 items-center text-white">
-            <div class="col-span-2 font-mono text-lg font-bold">{{ t.heure|time:"H:i" }}<div class="text-[11px] text-teal-200 font-normal">{{ t.date }}</div></div>
-            <div class="col-span-3 font-medium">{{ t.route.port_depart }} <span class="text-sunset">→</span> {{ t.route.port_arrivee }}</div>
-            <div class="col-span-2 text-sm text-teal-100">{{ t.bateau.nom }}</div>
-            <div class="col-span-2 text-sm text-teal-100">{{ t.route.duree_min }} min</div>
-            <div class="col-span-1 text-sm {% if t.est_complet %}text-red-300{% else %}text-emerald-300{% endif %} font-semibold">
-              {% if t.est_complet %}Complet{% else %}{{ t.places_disponibles }}{% endif %}
+      <div>
+        <label class="label">Arrivée</label>
+        <select name="arrivee" class="input">
+          <option value="">Toutes destinations</option>
+          {% for p in ports %}
+            <option value="{{ p }}" {% if form.arrivee.value == p %}selected{% endif %}>{{ p }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="label">Date</label>
+        <input type="date" name="date" value="{{ form.date.value|default:'' }}" class="input">
+      </div>
+      <div>
+        <button type="submit" class="btn btn-primary px-7 py-3 text-[15px] w-full md:w-auto">
+          🔍 Rechercher
+        </button>
+      </div>
+    </form>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     BANDEAU DE CONFIANCE
+     ═══════════════════════════════════════════════════════════════ -->
+<section class="no-print mb-16 reveal" style="--d:.1s">
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    {% for t in trust %}
+    <div class="card p-4 flex items-center gap-3">
+      <span class="w-11 h-11 rounded-2xl bg-aqua/10 text-teal flex items-center justify-center text-xl shrink-0">{{ t.icon }}</span>
+      <div>
+        <div class="font-bold text-navy text-sm">{{ t.title }}</div>
+        <div class="text-xs text-ink/50">{{ t.sub }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     COMMENT ÇA MARCHE — 4 étapes
+     ═══════════════════════════════════════════════════════════════ -->
+<section class="mb-20 reveal" style="--d:.15s">
+  <div class="text-center mb-10">
+    <span class="kicker">Simple &amp; rapide</span>
+    <h2 class="font-display text-3xl md:text-4xl font-bold text-navy mt-2">Comment ça marche ?</h2>
+  </div>
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+    {% for etape in etapes %}
+    <div class="card p-6 text-center hover:-translate-y-1 transition-transform duration-300" style="--d:{{ forloop.counter0 }}00ms">
+      <div class="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center text-2xl font-display font-extrabold text-white
+        {% if forloop.counter == 1 %}bg-gradient-to-br from-teal to-aqua
+        {% elif forloop.counter == 2 %}bg-gradient-to-br from-sunset to-ember
+        {% elif forloop.counter == 3 %}bg-gradient-to-br from-blue-500 to-blue-600
+        {% else %}bg-gradient-to-br from-emerald-500 to-emerald-600{% endif %}">
+        {{ etape.num }}
+      </div>
+      <h3 class="font-display font-bold text-navy text-lg mb-2">{{ etape.title }}</h3>
+      <p class="text-sm text-ink/60 leading-relaxed">{{ etape.text }}</p>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     DESTINATIONS POPULAIRES
+     ═══════════════════════════════════════════════════════════════ -->
+<section class="mb-20 reveal" style="--d:.2s">
+  <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-3">
+    <div>
+      <span class="kicker">Top des routes</span>
+      <h2 class="font-display text-3xl md:text-4xl font-bold text-navy mt-2">Destinations populaires</h2>
+    </div>
+    <a href="#recherche" class="text-sm font-bold text-teal hover:text-navy transition">Voir toutes les lignes →</a>
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+    {% for dest in destinations %}
+    <div class="group card overflow-hidden hover:-translate-y-1 transition-all duration-300 shadow-soft hover:shadow-lift">
+      <div class="relative h-44 overflow-hidden">
+        <img src="{% static dest.img %}" alt="{{ dest.nom }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+        <div class="absolute inset-0 bg-gradient-to-t from-navy/70 via-navy/10 to-transparent"></div>
+        <span class="absolute top-3 left-3 bg-white/90 text-navy text-[11px] font-mono font-bold px-2.5 py-1 rounded-full backdrop-blur-sm">{{ dest.tagline }}</span>
+      </div>
+      <div class="p-5">
+        <div class="flex items-start justify-between">
+          <h3 class="font-display font-bold text-navy text-xl">{{ dest.nom }}</h3>
+          {% if dest.prix_min %}
+            <span class="text-sunset font-mono font-bold text-sm text-right">dès {{ dest.prix_min|floatformat:0|intcomma }} FC</span>
+          {% else %}
+            <span class="text-ink/40 font-mono font-bold text-sm text-right">—</span>
+          {% endif %}
+        </div>
+        <p class="text-sm text-ink/55 mt-1.5 leading-relaxed">{{ dest.duree }}</p>
+        <a href="{% url 'home' %}?arrivee={{ dest.arrivee }}" class="inline-flex items-center gap-1.5 mt-4 text-sm font-bold text-teal hover:text-navy transition">
+          Voir les départs →
+        </a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     PROCHAINS DÉPARTS — En direct
+     ═══════════════════════════════════════════════════════════════ -->
+{% if prochains %}
+<section class="mb-20 reveal" style="--d:.25s">
+  <div class="text-center mb-8">
+    <span class="kicker">En direct du port</span>
+    <h2 class="font-display text-3xl md:text-4xl font-bold text-navy mt-2">Prochains départs</h2>
+  </div>
+  <div class="space-y-3">
+    {% for t in prochains %}
+    <div class="card px-5 py-4 flex flex-col md:flex-row md:items-center justify-between gap-3 hover:-translate-y-0.5 transition-all duration-200 shadow-sm hover:shadow-soft">
+      <div class="flex items-center gap-4">
+        <div class="w-16 text-center shrink-0">
+          <span class="font-mono text-xl font-extrabold text-navy">{{ t.heure|time:"H:i" }}</span>
+          <div class="text-[11px] text-ink/50 font-mono">{{ t.date|date:"d/m" }}</div>
+        </div>
+        <div class="border-l-2 border-aqua pl-4">
+          <div class="font-display font-bold text-navy text-[15px]">
+            {{ t.route.port_depart }} <span class="text-sunset">→</span> {{ t.route.port_arrivee }}
+          </div>
+          <div class="text-sm text-ink/55 mt-0.5">{{ t.bateau.nom }} · {{ t.route.duree_min }} min</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-4 md:gap-5">
+        <div class="text-right">
+          <div class="font-mono font-bold text-navy text-lg">{{ t.prix|floatformat:0|intcomma }} <span class="text-sm font-medium text-ink/50">FC</span></div>
+          <div class="text-xs font-semibold {% if t.est_complet %}text-red-500{% else %}text-emerald-600{% endif %}">
+            {% if t.est_complet %}Complet{% else %}{{ t.places_disponibles }} place(s){% endif %}
+          </div>
+        </div>
+        {% if not t.est_complet %}
+          <a href="{% url 'reserver' t.id %}" class="btn btn-primary px-5 py-2.5 text-sm">Réserver</a>
+        {% else %}
+          <span class="px-5 py-2.5 rounded-full bg-ink/5 text-ink/30 font-bold text-sm">Complet</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<!-- ═══════════════════════════════════════════════════════════════
+     RÉSULTATS DE RECHERCHE
+     ═══════════════════════════════════════════════════════════════ -->
+{% if resultats is not None %}
+<section id="resultats" class="mb-20 reveal">
+  {% if resultats %}
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="font-display text-2xl font-bold text-navy">{{ resultats|length }} traversée(s) trouvée(s)</h2>
+    </div>
+    <div class="space-y-3">
+      {% for t in resultats %}
+        <div class="card px-5 py-4 flex flex-col md:flex-row md:items-center justify-between gap-3 hover:-translate-y-0.5 transition-all duration-200 shadow-sm hover:shadow-soft">
+          <div class="flex items-center gap-4">
+            <div class="w-16 text-center shrink-0">
+              <span class="font-mono text-xl font-extrabold text-navy">{{ t.heure|time:"H:i" }}</span>
+              <div class="text-[11px] text-ink/50 font-mono">{{ t.date|date:"d/m" }}</div>
             </div>
-            <div class="col-span-1 font-mono text-sm">{{ t.prix|floatformat:0|intcomma }} FC</div>
-            <div class="col-span-1 text-right">
-              {% if t.est_complet %}
-                <span class="bg-white/20 text-white/60 text-xs font-semibold rounded-full px-3 py-1.5 inline-block">Complet</span>
-              {% else %}
-                <a href="{% url 'reserver' t.id %}" class="bg-sunset text-white text-xs font-semibold rounded-full px-3 py-1.5 inline-block">Réserver</a>
-              {% endif %}
+            <div class="border-l-2 border-aqua pl-4">
+              <div class="font-display font-bold text-navy text-[15px]">
+                {{ t.route.port_depart }} <span class="text-sunset">→</span> {{ t.route.port_arrivee }}
+              </div>
+              <div class="text-sm text-ink/55 mt-0.5">{{ t.bateau.nom }} · {{ t.route.duree_min }} min</div>
             </div>
           </div>
-          {# ---- carte mobile (< md) ---- #}
-          <div class="board-row md:hidden px-5 py-4 text-white">
-            <div class="flex items-start justify-between">
-              <div class="font-mono text-xl font-bold">{{ t.heure|time:"H:i" }}</div>
-              <div class="text-right">
-                <div class="text-[11px] text-teal-200">{{ t.date }}</div>
-                <div class="font-mono text-sm mt-0.5">{{ t.prix|floatformat:0|intcomma }} FC</div>
+          <div class="flex items-center gap-4 md:gap-5">
+            <div class="text-right">
+              <div class="font-mono font-bold text-navy text-lg">{{ t.prix|floatformat:0|intcomma }} <span class="text-sm font-medium text-ink/50">FC</span></div>
+              <div class="text-xs font-semibold {% if t.est_complet %}text-red-500{% else %}text-emerald-600{% endif %}">
+                {% if t.est_complet %}Complet{% else %}{{ t.places_disponibles }} place(s){% endif %}
               </div>
             </div>
-            <div class="font-medium mt-1">{{ t.route.port_depart }} <span class="text-sunset">→</span> {{ t.route.port_arrivee }}</div>
-            <div class="text-sm text-teal-100 mt-1">{{ t.bateau.nom }} · {{ t.route.duree_min }} min</div>
-            <div class="flex items-center justify-between mt-3">
-              <span class="text-sm {% if t.est_complet %}text-red-300{% else %}text-emerald-300{% endif %} font-semibold">
-                {% if t.est_complet %}Complet{% else %}{{ t.places_disponibles }} place(s) libre(s){% endif %}
-              </span>
-              {% if t.est_complet %}
-                <span class="bg-white/20 text-white/60 text-xs font-semibold rounded-full px-3 py-1.5">Complet</span>
-              {% else %}
-                <a href="{% url 'reserver' t.id %}" class="bg-sunset text-white text-xs font-semibold rounded-full px-4 py-2">Réserver</a>
-              {% endif %}
-            </div>
+            {% if not t.est_complet %}
+              <a href="{% url 'reserver' t.id %}" class="btn btn-primary px-5 py-2.5 text-sm">Réserver</a>
+            {% else %}
+              <span class="px-5 py-2.5 rounded-full bg-ink/5 text-ink/30 font-bold text-sm">Complet</span>
+            {% endif %}
           </div>
-        {% endfor %}
-      </div>
+        </div>
+      {% endfor %}
     </div>
   {% else %}
-    <div class="text-center py-16 border-2 border-dashed border-dock rounded-2xl text-teal-800/60">
-      <div class="font-display text-xl mb-1">Aucune traversée trouvée</div>
+    <div class="text-center py-16 border-2 border-dashed border-dock rounded-3xl text-ink/40">
+      <div class="text-4xl mb-3">🌊</div>
+      <div class="font-display text-xl font-bold mb-1">Aucune traversée trouvée</div>
       <div class="text-sm">Essayez une autre date ou un autre port.</div>
     </div>
   {% endif %}
+</section>
 {% endif %}
+
+<!-- ═══════════════════════════════════════════════════════════════
+     STATISTIQUES
+     ═══════════════════════════════════════════════════════════════ -->
+<section class="mb-20 reveal" style="--d:.3s">
+  <div class="bg-gradient-to-br from-navy to-deep rounded-3xl p-8 md:p-12 grid grid-cols-2 md:grid-cols-4 gap-8 text-center text-white">
+    <div>
+      <div class="font-display text-4xl md:text-5xl font-extrabold title-grad-sun" data-count="{{ stats_marketing.ports }}">0</div>
+      <div class="text-white/60 text-sm mt-2 font-medium">Ports desservis</div>
+    </div>
+    <div>
+      <div class="font-display text-4xl md:text-5xl font-extrabold title-grad-sun" data-count="{{ stats_marketing.lignes }}">0</div>
+      <div class="text-white/60 text-sm mt-2 font-medium">Lignes actives</div>
+    </div>
+    <div>
+      <div class="font-display text-4xl md:text-5xl font-extrabold title-grad-sun" data-count="{{ stats_marketing.bateaux }}">0</div>
+      <div class="text-white/60 text-sm mt-2 font-medium">Bateaux en flotte</div>
+    </div>
+    <div>
+      <div class="font-display text-4xl md:text-5xl font-extrabold title-grad-sun" data-count="{{ stats_marketing.departs_aujourdhui }}">0</div>
+      <div class="text-white/60 text-sm mt-2 font-medium">Départs aujourd'hui</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     AT OUTS — Pourquoi SILIMU
+     ═══════════════════════════════════════════════════════════════ -->
+<section class="mb-20 reveal" style="--d:.35s">
+  <div class="text-center mb-10">
+    <span class="kicker">Nos avantages</span>
+    <h2 class="font-display text-3xl md:text-4xl font-bold text-navy mt-2">Pourquoi choisir SILIMU ?</h2>
+  </div>
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+    {% for atout in atouts %}
+    <div class="card p-6 text-center">
+      <div class="text-3xl mb-4">{{ atout.icon }}</div>
+      <h3 class="font-display font-bold text-navy text-lg mb-2">{{ atout.title }}</h3>
+      <p class="text-sm text-ink/60 leading-relaxed">{{ atout.text }}</p>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     TÉMOIGNAGES
+     ═══════════════════════════════════════════════════════════════ -->
+<section class="mb-20 reveal" style="--d:.4s">
+  <div class="text-center mb-10">
+    <span class="kicker">Ce qu'en disent nos passagers</span>
+    <h2 class="font-display text-3xl md:text-4xl font-bold text-navy mt-2">Témoignages</h2>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    {% for t in temoignages %}
+    <div class="card p-6">
+      <div class="text-amber-400 text-lg mb-3">★★★★★</div>
+      <p class="text-sm text-ink/70 leading-relaxed mb-4">« {{ t.texte }} »</p>
+      <div class="flex items-center gap-3 border-t border-ink/5 pt-4">
+        <div class="w-10 h-10 rounded-full {% cycle 'bg-teal/10 text-teal' 'bg-sunset/10 text-sunset' 'bg-aqua/10 text-aqua' as avbg %} flex items-center justify-center font-display font-bold">{{ t.nom|truncatechars:1 }}</div>
+        <div>
+          <div class="font-semibold text-navy text-sm">{{ t.nom }}</div>
+          <div class="text-xs text-ink/50">{{ t.detail }}</div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     CTA BANNIÈRE
+     ═══════════════════════════════════════════════════════════════ -->
+<section class="mb-20 reveal" style="--d:.45s">
+  <div class="relative rounded-3xl overflow-hidden min-h-[320px] md:min-h-[360px]">
+    <img src="{% static 'img/sunset.jpg' %}" alt="Coucher de soleil sur le lac Kivu" class="absolute inset-0 w-full h-full object-cover">
+    <div class="absolute inset-0 bg-gradient-to-t from-navy/90 via-navy/70 to-navy/40 md:bg-gradient-to-r md:from-navy/85 md:via-navy/60 md:to-navy/25"></div>
+    <div class="relative z-10 flex min-h-[320px] md:min-h-[360px] items-center">
+      <div class="px-6 py-10 md:px-14 max-w-2xl">
+        <h2 class="font-display text-3xl md:text-4xl font-bold text-white mb-3">Prêt à embarquer ?</h2>
+        <p class="text-white/80 mb-6 text-lg">Réservez votre prochaine traversée sur le lac Kivu en quelques clics.</p>
+        <div class="flex flex-col sm:flex-row gap-3">
+          <a href="{% url 'home' %}#recherche" class="btn btn-primary px-7 py-3.5 text-[15px]">Réserver maintenant</a>
+          <a href="{% url 'compte_inscription' %}" class="btn btn-ghost px-6 py-3.5 text-[15px]">Créer un compte gratuit</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     FAQ
+     ═══════════════════════════════════════════════════════════════ -->
+<section class="mb-16 reveal" style="--d:.5s">
+  <div class="text-center mb-10">
+    <span class="kicker">Questions fréquentes</span>
+    <h2 class="font-display text-3xl md:text-4xl font-bold text-navy mt-2">FAQ</h2>
+  </div>
+  <div class="max-w-3xl mx-auto space-y-4">
+    {% for f in faq %}
+    <details class="card group">
+      <summary class="px-6 py-4 cursor-pointer font-display font-semibold text-navy flex items-center justify-between list-none">
+        {{ f.q }}
+        <span class="text-sunset text-2xl font-bold group-open:rotate-45 transition-transform">+</span>
+      </summary>
+      <div class="px-6 pb-5 text-sm text-ink/65 leading-relaxed border-t border-ink/5 pt-4">{{ f.a }}</div>
+    </details>
+    {% endfor %}
+  </div>
+</section>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<!-- Compteur animé pour la section statistiques -->
+<script>
+(function(){
+  var nums = document.querySelectorAll('[data-count]');
+  if (!nums.length) return;
+  if (!('IntersectionObserver' in window)) {
+    nums.forEach(function(el){ el.textContent = parseInt(el.dataset.count,10).toLocaleString('fr-FR'); });
+    return;
+  }
+  var triggered = false;
+  var obs = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if (e.isIntersecting && !triggered) {
+        triggered = true;
+        obs.disconnect();
+        animAll();
+      }
+    });
+  }, {threshold: 0.25});
+  nums.forEach(function(el){ obs.observe(el); });
+  function animAll(){
+    nums.forEach(function(el){
+      var end = parseInt(el.dataset.count, 10);
+      var dur = 1200;
+      var t0  = null;
+      function step(ts){
+        if (!t0) t0 = ts;
+        var p = Math.min((ts - t0) / dur, 1);
+        el.textContent = Math.floor(p * end).toLocaleString('fr-FR');
+        if (p < 1) requestAnimationFrame(step);
+        else el.textContent = end.toLocaleString('fr-FR');
+      }
+      requestAnimationFrame(step);
+    });
+  }
+})();
+</script>
 {% endblock %}

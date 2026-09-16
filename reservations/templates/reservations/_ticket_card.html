@@ -1,15 +1,15 @@
 {% load humanize %}
 {% load reservations_extras %}
-<div class="ticket {{ extra_class }}">
-  <div class="bg-lake ripple-bg text-white rounded-t-[18px] p-6 relative overflow-hidden">
+<div class="ticket {{ extra_class }} max-w-md mx-auto w-full">
+  <div class="bg-gradient-to-br from-navy to-deep ripple-bg text-white rounded-t-[18px] p-6 relative overflow-hidden">
     <div class="flex justify-between items-start">
       <div>
-        <div class="font-mono text-[10px] tracking-[0.25em] uppercase text-teal-200">Billet de traversée</div>
-        <div class="font-display text-xl font-bold mt-1">SILIMU</div>
+        <div class="kicker text-aqua text-[10px] tracking-[0.28em]">Carte d'embarquement</div>
+        <div class="font-display text-xl font-bold mt-1">SILIMU — Lac Kivu</div>
       </div>
       <div class="text-right">
-        <div class="font-mono text-[10px] uppercase text-teal-200">Statut</div>
-        <div class="font-semibold
+        <div class="font-mono text-[10px] uppercase text-white/50">Statut</div>
+        <div class="font-semibold text-sm
           {% if reservation.statut == 'CONFIRME' %}text-emerald-300
           {% elif reservation.statut == 'EN_ATTENTE' %}text-amber-300
           {% else %}text-red-300{% endif %}">
@@ -17,34 +17,42 @@
         </div>
       </div>
     </div>
-    <div class="mt-5 flex items-end justify-between">
-      <div><div class="font-display text-2xl font-bold">{{ reservation.traversee.route.port_depart }}</div></div>
-      <div class="flex-1 flex items-center px-3">
-        <div class="h-px bg-white/30 flex-1"></div>
-        <span class="text-sunset text-xl px-1">⛵</span>
-        <div class="h-px bg-white/30 flex-1"></div>
+    <div class="mt-6 flex items-center justify-between">
+      <div>
+        <div class="font-mono text-[10px] uppercase text-white/50">Départ</div>
+        <div class="font-display text-2xl font-bold">{{ reservation.traversee.route.port_depart }}</div>
+        <div class="font-mono text-sm text-white/70">{{ reservation.traversee.heure|time:"H:i" }}</div>
       </div>
-      <div class="text-right"><div class="font-display text-2xl font-bold">{{ reservation.traversee.route.port_arrivee }}</div></div>
+      <div class="flex-1 flex items-center px-4">
+        <div class="h-px bg-white/20 flex-1"></div>
+        <span class="text-sunset text-xl px-1">⛵</span>
+        <div class="h-px bg-white/20 flex-1"></div>
+      </div>
+      <div class="text-right">
+        <div class="font-mono text-[10px] uppercase text-white/50">Arrivée</div>
+        <div class="font-display text-2xl font-bold">{{ reservation.traversee.route.port_arrivee }}</div>
+        <div class="font-mono text-sm text-white/70">{{ reservation.traversee.date|date:"d/m/Y" }}</div>
+      </div>
     </div>
   </div>
   <div class="perf mx-6"></div>
   <div class="p-6 bg-white rounded-b-[18px]">
     <div class="grid grid-cols-2 gap-y-4 gap-x-4 text-sm">
-      <div><div class="font-mono text-[10px] uppercase text-teal-700">Passager</div><div class="font-semibold">{{ reservation.nom_passager }}</div></div>
-      <div><div class="font-mono text-[10px] uppercase text-teal-700">Téléphone</div><div class="font-semibold">{{ reservation.telephone }}</div></div>
-      <div><div class="font-mono text-[10px] uppercase text-teal-700">Date</div><div class="font-semibold">{{ reservation.traversee.date }}</div></div>
-      <div><div class="font-mono text-[10px] uppercase text-teal-700">Heure</div><div class="font-semibold">{{ reservation.traversee.heure|time:"H:i" }}</div></div>
-      <div><div class="font-mono text-[10px] uppercase text-teal-700">Bateau</div><div class="font-semibold">{{ reservation.traversee.bateau.nom }}</div></div>
-      <div><div class="font-mono text-[10px] uppercase text-teal-700">Places</div><div class="font-semibold">{{ reservation.nb_places }}</div></div>
-      <div><div class="font-mono text-[10px] uppercase text-teal-700">Paiement</div><div class="font-semibold">{{ reservation.get_mode_paiement_display }}</div></div>
+      <div><div class="kicker text-[10px]">Passager</div><div class="font-semibold text-navy mt-0.5">{{ reservation.nom_passager }}</div></div>
+      <div><div class="kicker text-[10px]">Téléphone</div><div class="font-semibold text-navy mt-0.5">{{ reservation.telephone }}</div></div>
+      <div><div class="kicker text-[10px]">Bateau</div><div class="font-semibold text-navy mt-0.5">{{ reservation.traversee.bateau.nom }}</div></div>
+      <div><div class="kicker text-[10px]">Durée</div><div class="font-semibold text-navy mt-0.5">{{ reservation.traversee.route.duree_min }} min</div></div>
+      <div><div class="kicker text-[10px]">Places</div><div class="font-semibold text-navy mt-0.5">{{ reservation.nb_places }}</div></div>
+      <div><div class="kicker text-[10px]">Paiement</div><div class="font-semibold text-navy mt-0.5">{{ reservation.get_mode_paiement_display }}</div></div>
     </div>
     <div class="flex items-center justify-between mt-5 pt-4 border-t border-dashed border-dock">
-      <span class="font-mono text-xs uppercase text-teal-700">Total payé</span>
-      <span class="font-display text-xl font-bold text-lake">{{ reservation.total|floatformat:0|intcomma }} FC</span>
+      <span class="kicker text-[10px]">Total payé</span>
+      <span class="font-display text-xl font-extrabold text-navy">{{ reservation.total|floatformat:0|intcomma }} FC</span>
     </div>
-    <div class="flex flex-col items-center mt-4">
+    <div class="flex flex-col items-center mt-5 bg-mist rounded-2xl py-5">
       <img src="data:image/png;base64,{{ reservation.code|qr_code }}" alt="QR code du billet" class="w-28 h-28">
-      <div class="text-center font-mono text-sm tracking-[0.3em] font-bold text-lake mt-2">{{ reservation.code }}</div>
+      <div class="text-center font-mono text-sm tracking-[0.3em] font-bold text-navy mt-2">{{ reservation.code }}</div>
+      <div class="text-[11px] text-navy/45 mt-1">Présentez ce QR code à l'embarquement</div>
     </div>
   </div>
 </div>

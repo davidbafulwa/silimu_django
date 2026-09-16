@@ -1,48 +1,123 @@
 {% extends "reservations/base.html" %}
-{% load humanize %}
-{% block title %}Réserver — {{ traversee.route }}{% endblock %}
+{% load static humanize %}
+{% block title %}Réserver — {{ traversee.route.port_depart }} → {{ traversee.route.port_arrivee }}{% endblock %}
 
 {% block content %}
-<div class="max-w-xl mx-auto py-10">
-  <a href="{% url 'home' %}" class="text-sm text-teal-700 mb-4 inline-block hover:underline">&larr; Retour au tableau des départs</a>
-  <div class="bg-white rounded-2xl shadow-xl border border-black/5 p-6">
-    <div class="font-mono text-xs uppercase tracking-widest text-sunset mb-1">Réservation</div>
-    <h2 class="font-display text-2xl font-bold text-lake mb-1">{{ traversee.route.port_depart }} → {{ traversee.route.port_arrivee }}</h2>
-    <p class="text-sm text-teal-800/70 mb-4">{{ traversee.date }} à {{ traversee.heure|time:"H:i" }} · {{ traversee.bateau.nom }} · {{ traversee.route.duree_min }} min</p>
+<div class="max-w-6xl mx-auto py-10">
+  <a href="{% url 'home' %}" class="inline-flex items-center gap-2 text-sm text-teal font-semibold mb-6 hover:text-navy transition">
+    ← Retour au tableau des départs
+  </a>
 
-    {% if passager %}
-      <div class="bg-teal-50 border border-teal-100 rounded-lg px-3 py-2 text-xs text-teal-800 mb-4">
-        Connecté en tant que <strong>{{ passager.nom_complet }}</strong> — ce billet sera ajouté à votre compte.
-      </div>
-    {% else %}
-      <div class="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 text-xs text-amber-800 mb-4">
-        <a href="{% url 'compte_connexion' %}" class="font-semibold hover:underline">Connectez-vous</a> ou <a href="{% url 'compte_inscription' %}" class="font-semibold hover:underline">créez un compte</a> pour retrouver facilement vos billets.
-      </div>
-    {% endif %}
+  <div class="grid lg:grid-cols-[1fr_380px] gap-8">
+    <!-- ─── Formulaire ──────────────────────────────────────────── -->
+    <div class="card p-6 md:p-8">
+      <div class="kicker mb-2">Réservation en ligne</div>
+      <h1 class="font-display text-2xl md:text-3xl font-bold text-navy mb-1">
+        {{ traversee.route.port_depart }} → {{ traversee.route.port_arrivee }}
+      </h1>
+      <p class="text-sm text-ink/55 mb-6">
+        {{ traversee.date|date:"l d F Y" }} à {{ traversee.heure|time:"H:i" }} · {{ traversee.bateau.nom }} · {{ traversee.route.duree_min }} min
+      </p>
 
-    <form method="post" novalidate>
-      {% csrf_token %}
-      <div class="space-y-4">
-        {% for field in form %}
+      {% if passager %}
+        <div class="bg-aqua/8 border border-aqua/20 rounded-2xl px-4 py-3 text-sm text-navy mb-6 flex items-center gap-3">
+          <span class="text-lg">👤</span>
+          <div>Connecté en tant que <strong>{{ passager.nom_complet }}</strong> — ce billet sera ajouté à votre compte.</div>
+        </div>
+      {% else %}
+        <div class="bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3 text-sm text-amber-800 mb-6 flex items-center gap-3">
+          <span class="text-lg">💡</span>
           <div>
-            <label class="block font-mono text-[11px] uppercase tracking-widest text-teal-700 mb-1.5">{{ field.label }}</label>
-            {{ field }}
-            {% if field.errors %}
-              <p class="text-red-500 text-xs mt-1">{{ field.errors|striptags }}</p>
-            {% endif %}
+            <a href="{% url 'compte_connexion' %}" class="font-bold hover:underline">Connectez-vous</a> ou
+            <a href="{% url 'compte_inscription' %}" class="font-bold hover:underline">créez un compte</a> pour retrouver facilement vos billets.
           </div>
-        {% endfor %}
+        </div>
+      {% endif %}
+
+      <form method="post" novalidate>
+        {% csrf_token %}
+        <div class="space-y-4">
+          {% for field in form %}
+            <div>
+              <label class="label">{{ field.label }}</label>
+              {{ field }}
+              {% if field.errors %}
+                <p class="text-red-500 text-xs mt-1.5 font-semibold">{{ field.errors|striptags }}</p>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+
+        <button type="submit" class="btn btn-primary w-full py-3.5 mt-8 text-[15px]">
+          Payer et confirmer la réservation
+        </button>
+        <p class="text-[11px] text-ink/40 mt-2.5 text-center">
+          Redirection vers la page de paiement sécurisée CinetPay (Orange Money, Airtel, M-Pesa, carte).
+        </p>
+      </form>
+    </div>
+
+    <!-- ─── Récapitulatif traversée (sticky) ──────────────────── -->
+    <aside class="lg:sticky lg:top-24 lg:self-start">
+      <div class="card overflow-hidden">
+        <div class="bg-gradient-to-br from-navy to-deep p-5 text-white">
+          <div class="font-mono text-[10px] tracking-[0.2em] uppercase text-aqua mb-1">Récapitulatif</div>
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <div class="font-display font-bold text-2xl">{{ traversee.route.port_depart }}</div>
+              <div class="text-white/60 text-sm font-mono">{{ traversee.heure|time:"H:i" }}</div>
+            </div>
+            <div class="flex-1 flex items-center px-2">
+              <div class="h-px bg-white/20 flex-1"></div>
+              <span class="text-sunset text-lg px-1">⛵</span>
+              <div class="h-px bg-white/20 flex-1"></div>
+            </div>
+            <div class="text-right">
+              <div class="font-display font-bold text-2xl">{{ traversee.route.port_arrivee }}</div>
+              <div class="text-white/60 text-sm font-mono">{{ traversee.date|date:"d/m/Y" }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="p-5 space-y-3 text-sm">
+          <div class="flex items-center justify-between">
+            <span class="text-ink/55">Bateau</span>
+            <span class="font-semibold text-navy">{{ traversee.bateau.nom }}</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-ink/55">Type</span>
+            <span class="font-semibold text-navy">{{ traversee.bateau.get_type_bateau_display }}</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-ink/55">Durée</span>
+            <span class="font-semibold text-navy">{{ traversee.route.duree_min }} min</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-ink/55">Distance</span>
+            <span class="font-semibold text-navy">{{ traversee.route.distance_km }} km</span>
+          </div>
+          <div class="flex items-center justify-between border-t border-ink/8 pt-3">
+            <span class="text-ink/55">Places disponibles</span>
+            <span class="font-bold text-lg {% if traversee.est_complet %}text-red-500{% else %}text-emerald-600{% endif %}">
+              {{ traversee.places_disponibles }}
+            </span>
+          </div>
+        </div>
+
+        <div class="bg-sand border-t border-dashed border-dock px-5 py-4">
+          <div class="flex items-center justify-between">
+            <span class="font-mono text-xs uppercase tracking-widest text-ink/50">Prix par place</span>
+            <span class="font-display text-2xl font-extrabold text-navy">{{ traversee.prix|floatformat:0|intcomma }} <span class="text-sm font-medium text-ink/40">FC</span></span>
+          </div>
+        </div>
       </div>
 
-      <div class="border-t border-dashed border-dock mt-6 pt-4 flex items-center justify-between">
-        <span class="font-mono text-xs uppercase tracking-widest text-teal-700">Prix par place</span>
-        <span class="font-display text-xl font-bold text-lake">{{ traversee.prix|floatformat:0|intcomma }} FC</span>
+      <div class="mt-4 px-1 text-xs text-ink/40 space-y-1.5">
+        <div class="flex items-start gap-2"><span>🔒</span> Paiement sécurisé via CinetPay</div>
+        <div class="flex items-start gap-2"><span>🎫</span> E-billet envoyé par e-mail</div>
+        <div class="flex items-start gap-2"><span>📱</span> Mobile Money ou carte bancaire</div>
       </div>
-      <p class="text-xs text-teal-800/60 mt-1">{{ traversee.places_disponibles }} place(s) disponible(s) sur ce trajet.</p>
-
-      <button type="submit" class="mt-5 w-full bg-sunset hover:brightness-95 text-white font-semibold rounded-lg px-4 py-3 transition">Payer et confirmer la réservation</button>
-      <p class="text-[11px] text-teal-800/60 mt-2 text-center">Vous allez être redirigé vers la page de paiement sécurisée CinetPay.</p>
-    </form>
+    </aside>
   </div>
 </div>
 
@@ -69,8 +144,8 @@
 {% block extra_head %}
 <style>
   input[type=text], input[type=number], input[type=tel], input[type=email], select{
-    width:100%; border:1px solid var(--dock-sand); border-radius:0.5rem; padding:0.625rem 0.75rem; background:#fff;
+    width:100%; border:1.5px solid #d8c9a8; border-radius:.8rem; padding:.72rem .95rem; background:#fff; font-size:.95rem; color:#123140;
   }
-  input:focus, select:focus{outline:2px solid var(--sunset); outline-offset:2px;}
+  input:focus, select:focus{outline:none; border-color:#0fb5b0; box-shadow:0 0 0 4px rgba(15,181,176,.15);}
 </style>
 {% endblock %}

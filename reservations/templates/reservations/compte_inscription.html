@@ -1,32 +1,39 @@
 {% extends "reservations/base.html" %}
+{% load static %}
 {% block title %}Créer mon compte — SILIMU{% endblock %}
+
 {% block content %}
-<div class="max-w-sm mx-auto py-16">
-  <div class="bg-white rounded-2xl shadow-xl border border-black/5 p-6">
-    <div class="font-mono text-xs tracking-[0.25em] text-sunset uppercase mb-2">Espace passager</div>
-    <h2 class="font-display text-2xl font-bold text-lake mb-1">Créer mon compte</h2>
-    <p class="text-sm text-teal-800/70 mb-5">Retrouvez tous vos billets sans jamais les perdre.</p>
-    <form method="post" novalidate class="space-y-3">
-      {% csrf_token %}
-      {% if form.non_field_errors %}<p class="text-red-500 text-xs">{{ form.non_field_errors|striptags }}</p>{% endif %}
-      {% for field in form %}
-        <div>
-          <label class="block font-mono text-[11px] uppercase tracking-widest text-teal-700 mb-1.5">{{ field.label }}</label>
-          {{ field }}
-          {% if field.errors %}<p class="text-red-500 text-xs mt-1">{{ field.errors|striptags }}</p>{% endif %}
-        </div>
-      {% endfor %}
-      <button type="submit" class="w-full bg-sunset text-white font-semibold rounded-lg px-4 py-2.5 mt-2">Créer mon compte</button>
-    </form>
-    <p class="text-sm text-teal-800/70 mt-4 text-center">Déjà un compte ? <a href="{% url 'compte_connexion' %}" class="text-sunset font-semibold hover:underline">Se connecter</a></p>
+<div class="max-w-5xl mx-auto py-12 md:py-16">
+  <div class="card overflow-hidden grid lg:grid-cols-2 shadow-lift">
+    <div class="relative min-h-[260px] hidden lg:block">
+      <img src="{% static 'img/pecheur.jpg' %}" alt="Lever de soleil sur le lac Kivu" class="absolute inset-0 w-full h-full object-cover">
+      <div class="absolute inset-0 bg-gradient-to-t from-navy/95 via-navy/40 to-transparent"></div>
+      <div class="absolute bottom-0 p-8 text-white">
+        <h3 class="font-display text-2xl font-bold">Vos billets, toujours au même endroit.</h3>
+        <p class="text-white/80 text-sm mt-2">Historique complet, rattachement automatique de vos anciennes réservations et nouvelles plus rapides.</p>
+      </div>
+    </div>
+    <div class="p-7 md:p-10">
+      <div class="kicker mb-2">Espace passager</div>
+      <h1 class="font-display text-2xl md:text-3xl font-bold text-navy">Créer mon compte</h1>
+      <p class="text-sm text-navy/60 mb-6">Retrouvez tous vos billets sans jamais les perdre.</p>
+
+      <form method="post" novalidate class="form-card space-y-4">
+        {% csrf_token %}
+        {% if form.non_field_errors %}<p class="text-red-500 text-xs font-semibold">{{ form.non_field_errors|striptags }}</p>{% endif %}
+        {% for field in form %}
+          <div>
+            <label class="label">{{ field.label }}{% if field.field.required %}<span class="text-red-500"> *</span>{% endif %}</label>
+            {{ field }}
+            {% if field.errors %}<p class="text-red-500 text-xs mt-1.5 font-semibold">{{ field.errors|striptags }}</p>{% endif %}
+          </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-primary w-full py-3.5 mt-2">Créer mon compte</button>
+      </form>
+
+      <p class="text-sm text-navy/60 mt-5 text-center">Déjà un compte ?
+        <a href="{% url 'compte_connexion' %}" class="text-teal font-bold hover:underline">Se connecter</a></p>
+    </div>
   </div>
 </div>
-{% endblock %}
-
-{% block extra_head %}
-<style>
-  input[type=text], input[type=email], input[type=password]{
-    width:100%; border:1px solid var(--dock-sand); border-radius:0.5rem; padding:0.625rem 0.75rem;
-  }
-</style>
 {% endblock %}

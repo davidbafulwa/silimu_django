@@ -1,0 +1,19 @@
+SILIMU — Annulation de réservation
+
+Bonjour {{ reservation.nom_passager }},
+
+Votre réservation a été annulée.
+
+Ligne : {{ reservation.traversee.route.port_depart }} -> {{ reservation.traversee.route.port_arrivee }}
+Date : {{ reservation.traversee.date }}
+Heure : {{ reservation.traversee.heure }}
+Bateau : {{ reservation.traversee.bateau.nom }}
+Places : {{ reservation.nb_places }}
+Total : {{ reservation.total }} FC
+Code du billet : {{ reservation.code }}
+
+Si un paiement avait été effectué, notre équipe vous contactera pour organiser le remboursement ou le report sur une autre traversée.
+
+Pour toute question : contact@silimu.cd ou +243 990 000 000 (Bukavu & Goma).
+
+L'équipe SILIMU
