@@ -156,10 +156,14 @@ CINETPAY_CURRENCY = os.environ.get('CINETPAY_CURRENCY', 'CDF')  # XOF, XAF, CDF,
 # E-mail — envoi du billet + alerte de remplissage
 # --------------------------------------------------------------------
 # Par défaut : les e-mails s'affichent dans le terminal (aucun compte requis).
-# Pour un envoi réel, définir DJANGO_EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+# Si BREVO_API_KEY est défini, les e-mails sont envoyés via l'API Brevo.
+# Pour un SMTP classique, définir DJANGO_EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
 # et les variables EMAIL_HOST / EMAIL_PORT / EMAIL_HOST_USER / EMAIL_HOST_PASSWORD / EMAIL_USE_TLS.
+BREVO_API_KEY = os.environ.get('BREVO_API_KEY', '')
 EMAIL_BACKEND = os.environ.get(
-    'DJANGO_EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend'
+    'DJANGO_EMAIL_BACKEND',
+    'reservations.brevo_email_backend.BrevoEmailBackend' if BREVO_API_KEY
+    else 'django.core.mail.backends.console.EmailBackend'
 )
 EMAIL_HOST = os.environ.get('EMAIL_HOST', 'localhost')
 EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
@@ -167,6 +171,7 @@ EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'SILIMU <no-reply@silimu.local>')
+BREVO_SENDER_EMAIL = os.environ.get('BREVO_SENDER_EMAIL', 'no-reply@silimu.local')
 
 # --------------------------------------------------------------------
 # Supabase — Base de données PostgreSQL, Auth & Storage

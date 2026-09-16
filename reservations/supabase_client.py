@@ -146,7 +146,7 @@ def upload_file(bucket, path, file_data, content_type=None):
     if not client:
         return None, "Supabase non configuré"
     try:
-        kwargs = {"content_type": content_type} if content_type else {}
+        kwargs = {"file_options": {"content_type": content_type}} if content_type else {}
         response = client.storage.from_(bucket).upload(
             path, file_data, **kwargs
         )
@@ -220,7 +220,7 @@ def ensure_bucket(bucket_name, public=False):
     try:
         buckets = client.storage.list_buckets()
         if not any(b.name == bucket_name for b in buckets):
-            client.storage.create_bucket(bucket_name, {"public": public})
+            client.storage.create_bucket(bucket_name, options={"public": public})
         return True, None
     except Exception as exc:
         return False, str(exc)

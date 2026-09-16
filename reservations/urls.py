@@ -44,7 +44,9 @@ urlpatterns = [
 
     # Back-office — réservations (agents + admins)
     path('admin-silimu/reservations/', views.admin_bookings, name='admin_bookings'),
+    path('admin-silimu/reservations/<int:pk>/encaisser/', views.admin_booking_confirm, name='admin_booking_confirm'),
     path('admin-silimu/reservations/<int:pk>/annuler/', views.admin_booking_cancel, name='admin_booking_cancel'),
+    path('admin-silimu/reservations/<int:pk>/encaisser/', views.admin_booking_confirm, name='admin_booking_confirm'),
 
     # Back-office — exports comptables (admins)
     path('admin-silimu/reservations/export/csv/', views.export_bookings_csv, name='export_bookings_csv'),

@@ -56,10 +56,10 @@ class ReservationForm(forms.ModelForm):
     def __init__(self, *args, traversee=None, **kwargs):
         self.traversee = traversee
         super().__init__(*args, **kwargs)
-        # Le paiement en ligne exclut le règlement en espèces (réservé au comptoir)
-        self.fields['mode_paiement'].choices = [
-            c for c in Reservation.ModePaiement.choices if c[0] != Reservation.ModePaiement.ESPECES
-        ]
+        # Toujours proposer les paiements en ligne ET le règlement en espèces au guichet.
+        # Quand CinetPay n'est pas configuré, le paiement en ligne aboutit à un statut
+        # « Échec » (voir views.reserver) sans jamais bloquer le passager.
+        self.fields['mode_paiement'].choices = list(Reservation.ModePaiement.choices)
 
     def clean_nb_places(self):
         nb_places = self.cleaned_data['nb_places']

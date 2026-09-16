@@ -5,7 +5,7 @@ from io import BytesIO
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.forms import AuthenticationForm
-from django.db.models import Sum, Q, Count
+from django.db.models import Sum, Q, Count, Min
 from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
@@ -55,10 +55,87 @@ def home(request):
         list(Route.objects.values_list('port_arrivee', flat=True))
     ))
 
+    # Prochains départs (vitrine "en direct") + tarifs "à partir de" par port
+    aujourdhui = timezone.localdate()
+    prochains = Traversee.objects.select_related('route', 'bateau').filter(
+        date__gte=aujourdhui, bateau__en_service=True
+    ).order_by('date', 'heure')[:5]
+
+    a_futur = Traversee.objects.filter(date__gte=aujourdhui, bateau__en_service=True)
+    prix_par_port = {}
+    for ligne in a_futur.values('route__port_depart').annotate(prix_min=Min('prix')):
+        prix_par_port[ligne['route__port_depart']] = ligne['prix_min']
+    for ligne in a_futur.values('route__port_arrivee').annotate(prix_min=Min('prix')):
+        prix_par_port.setdefault(ligne['route__port_arrivee'], ligne['prix_min'])
+
+    stats_marketing = {
+        'ports': len(ports),
+        'bateaux': Bateau.objects.filter(en_service=True).count(),
+        'lignes': Route.objects.count(),
+        'departs_aujourdhui': Traversee.objects.filter(date=aujourdhui, bateau__en_service=True).count(),
+    }
+
+    # ── Contenus marketing de la page d'accueil ─────────────────────────
+    trust = [
+        {'icon': '🔒', 'title': 'Paiement sécurisé', 'sub': 'Orange, Airtel, M-Pesa, carte'},
+        {'icon': '🎫', 'title': 'E-billet QR code', 'sub': 'Imprimable & envoyé par e-mail'},
+        {'icon': '🕐', 'title': 'Places en direct', 'sub': 'Mise à jour temps réel'},
+        {'icon': '📞', 'title': 'Support local', 'sub': 'Bukavu & Goma, 7j/7'},
+    ]
+    etapes = [
+        {'num': '1', 'title': 'Recherchez', 'text': 'Choisissez vos ports de départ et d’arrivée, votre date et le nombre de places.'},
+        {'num': '2', 'title': 'Réglez', 'text': 'Payez en toute sécurité par Mobile Money (Orange, Airtel, M-Pesa) ou carte bancaire.'},
+        {'num': '3', 'title': 'Recevez', 'text': 'Votre e-billet avec QR code arrive instantanément par e-mail après confirmation.'},
+        {'num': '4', 'title': 'Embarquez', 'text': 'Présentez votre billet (écran ou imprimé) au guichet le jour du départ.'},
+    ]
+    destinations = [
+        {'nom': 'Bukavu', 'arrivee': 'Bukavu', 'img': 'img/kivu.jpg',
+         'tagline': 'Capitale du Sud-Kivu', 'duree': 'départs quotidiens'},
+        {'nom': 'Goma', 'arrivee': 'Goma', 'img': 'img/goma.jpg',
+         'tagline': 'Porte du Nord-Kivu', 'duree': 'au pied du volcan'},
+        {'nom': 'Idjwi', 'arrivee': 'Idjwi', 'img': 'img/aerial.jpg',
+         'tagline': 'La grande île du lac Kivu', 'duree': 'escapade nature'},
+        {'nom': 'Minova', 'arrivee': 'Minova', 'img': 'img/berges.jpg',
+         'tagline': 'Nord-Kivu Sud', 'duree': 'traversées régulières'},
+        {'nom': 'Kalehe', 'arrivee': 'Kalehe', 'img': 'img/lac_vert.jpg',
+         'tagline': 'Berceaux verts du Kivu', 'duree': 'à l’est du lac'},
+        {'nom': 'Uvira ⇄ Kalemie', 'arrivee': 'Kalemie', 'img': 'img/bateau_bois.jpg',
+         'tagline': 'Sur le lac Tanganyika', 'duree': 'Sud-Kivu / Tanganyika'},
+    ]
+    for d in destinations:
+        d['prix_min'] = prix_par_port.get(d['arrivee'])
+    atouts = [
+        {'icon': '✅', 'title': 'Tarifs sans surprises', 'text': 'Le prix affiché est le prix payé, en francs congolais, tous frais inclus.'},
+        {'icon': '📲', 'title': 'Paiement Mobile Money', 'text': 'Orange Money, Airtel Money et M-Pesa pris en charge, ou en espèces au comptoir.'},
+        {'icon': '🧾', 'title': 'Billet QR scannable', 'text': 'Un QR code unique par billet : contrôle rapide et sans papier à l’embarquement.'},
+        {'icon': '🔁', 'title': 'Annulation simple', 'text': 'Retrouvez et annulez vos billets depuis votre compte passager.'},
+    ]
+    temoignages = [
+        {'nom': 'Chantal M.', 'detail': 'Trajet Bukavu → Goma', 'texte': 'Réservé en ligne le matin, embarqué l’après-midi. Le billet QR m’a été envoyé direct sur mon e-mail, génial !'},
+        {'nom': 'Patient K.', 'detail': 'Trajet Goma → Minova', 'texte': 'Enfin des billets sans faire la queue au guichet. J’ai payé avec M-Pesa en 1 minute.'},
+        {'nom': 'Grâce N.', 'detail': 'Trajet vers Idjwi', 'texte': 'Comptoir accueillant à Bukavu et bateaux propres. Je recommande l’option e-billet imprimable.'},
+    ]
+    faq = [
+        {'q': 'Comment recevoir mon billet ?', 'a': 'Dès que votre paiement est confirmé, votre e-billet avec QR code est envoyé automatiquement à votre adresse e-mail. Vous pouvez aussi le retrouver en ligne grâce à votre code ou via votre compte passager.'},
+        {'q': 'Quels moyens de paiement sont acceptés ?', 'a': 'Orange Money, Airtel Money, M-Pesa et carte bancaire via une passerelle sécurisée. Vous pouvez aussi régler en espèces à nos guichets de Bukavu et de Goma.'},
+        {'q': 'Que se passe-t-il si ma traversée est annulée ?', 'a': 'Notre équipe vous contacte par téléphone ou e-mail et vous propose un report sur la traversée suivante ou un remboursement intégral.'},
+        {'q': 'Puis-je réserver pour plusieurs personnes ?', 'a': 'Oui, indiquez simplement le nombre de places souhaité au moment de la réservation. Le total s’ajuste automatiquement.'},
+        {'q': 'Dois-je imprimer mon billet ?', 'a': 'Non. Présentez votre QR code depuis votre téléphone à l’embarquement. L’impression reste disponible si vous préférez.'},
+    ]
+
     return render(request, 'reservations/home.html', {
         'form': form,
         'resultats': resultats,
         'ports': ports,
+        'prochains': prochains,
+        'prix_par_port': prix_par_port,
+        'stats_marketing': stats_marketing,
+        'trust': trust,
+        'etapes': etapes,
+        'destinations': destinations,
+        'atouts': atouts,
+        'temoignages': temoignages,
+        'faq': faq,
     })
 
 
@@ -83,6 +160,16 @@ def reserver(request, traversee_id):
             if passager:
                 reservation.passager = passager
             reservation.save()
+
+            # ── Paiement au guichet (espèces) : pas de CinetPay, le passager
+            #    viendra régler et il recevra son billet une fois encaissé. ──
+            if reservation.mode_paiement == Reservation.ModePaiement.ESPECES:
+                messages.success(
+                    request,
+                    "Réservation enregistrée ! Présentez-vous au guichet SILIMU avec le code "
+                    f"{reservation.code} pour régler et recevoir votre billet.",
+                )
+                return redirect('billet', code=reservation.code)
 
             try:
                 payment_url = cinetpay.initier_paiement(reservation, request)
@@ -547,10 +634,32 @@ def admin_bookings(request):
 
 
 @agent_required
+def admin_booking_confirm(request, pk):
+    """Encaissement d'une réservation EN ATTENTE (espèces payées au guichet).
+    Le passage à CONFIRME libère automatiquement l'envoi du billet par e-mail."""
+    reservation = get_object_or_404(Reservation, pk=pk)
+    if reservation.statut == Reservation.Statut.EN_ATTENTE:
+        reservation.marquer_payee()
+        _finaliser_si_payee(reservation)
+        messages.success(
+            request,
+            f"Réservation {reservation.code} encaissée : le billet a été envoyé à {reservation.email or reservation.telephone}.",
+        )
+    else:
+        messages.warning(
+            request,
+            "Seules les réservations « En attente de paiement » peuvent être encaissées au comptoir.",
+        )
+    return redirect('admin_bookings')
+
+
+@agent_required
 def admin_booking_cancel(request, pk):
     reservation = get_object_or_404(Reservation, pk=pk)
     reservation.statut = Reservation.Statut.ANNULE
     reservation.save()
+    from .notifications import envoyer_annulation_email
+    envoyer_annulation_email(reservation)
     messages.success(request, f"Réservation {reservation.code} annulée.")
     return redirect('admin_bookings')
 

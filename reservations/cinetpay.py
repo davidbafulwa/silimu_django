@@ -32,6 +32,11 @@ class CinetPayError(Exception):
     """Levée quand CinetPay refuse ou ne peut pas traiter la demande."""
 
 
+def est_configure():
+    """True si les identifiants marchand CinetPay sont renseignés."""
+    return bool(settings.CINETPAY_API_KEY and settings.CINETPAY_SITE_ID)
+
+
 def _build_absolute_url(request, path):
     return request.build_absolute_uri(path)
 

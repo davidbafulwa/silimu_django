@@ -8,19 +8,30 @@ from reservations.models import Route, Bateau, Traversee
 
 
 ROUTES = [
-    ("Munyaga", "Kasenyi", 38, 75),
-    ("Munyaga", "Ilanga", 22, 45),
-    ("Kasenyi", "Rutongo", 51, 100),
-    ("Ilanga", "Bandari-Nord", 29, 55),
+    # Lac Kivu — entre Sud-Kivu et Nord-Kivu
+    ("Bukavu", "Goma", 100, 90),
+    ("Goma", "Bukavu", 100, 90),
+    ("Bukavu", "Idjwi", 45, 60),
+    ("Idjwi", "Bukavu", 45, 60),
+    ("Goma", "Minova", 55, 70),
+    ("Minova", "Goma", 55, 70),
+    ("Bukavu", "Kalehe", 35, 50),
+    ("Kalehe", "Bukavu", 35, 50),
+    # Lac Tanganyika — extrémité sud du Sud-Kivu
+    ("Uvira", "Kalemie", 120, 150),
+    ("Kalemie", "Uvira", 120, 150),
 ]
 
 BATEAUX = [
     ("MV Kivu Étoile", 80, Bateau.TypeBateau.VEDETTE),
     ("MV Perle du Lac", 120, Bateau.TypeBateau.FERRY),
     ("MV Aube Bleue", 60, Bateau.TypeBateau.VEDETTE),
+    ("MV Virunga", 100, Bateau.TypeBateau.VEDETTE),
+    ("MV Idjwi Express", 70, Bateau.TypeBateau.VEDETTE),
+    ("MV Mapendo", 45, Bateau.TypeBateau.PIROGUE),
 ]
 
-HORAIRES = [time(7, 30), time(13, 0), time(17, 15)]
+HORAIRES = [time(7, 0), time(9, 30), time(13, 0), time(17, 0)]
 
 
 class Command(BaseCommand):

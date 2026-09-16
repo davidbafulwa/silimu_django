@@ -7,6 +7,14 @@ from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 
 
+def qr_code_png(data):
+    """Retourne les octets PNG du QR code pour `data`."""
+    img = qrcode.make(data, box_size=12, border=2)
+    buffer = BytesIO()
+    img.save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
 def qr_code_base64(data):
     """Génère un QR code encodant `data` et le renvoie en base64 (utilisable dans <img src="data:...">)."""
     img = qrcode.make(data, box_size=6, border=2)
@@ -34,9 +42,38 @@ def envoyer_billet_email(reservation):
             sujet, texte, settings.DEFAULT_FROM_EMAIL, [reservation.email]
         )
         message.attach_alternative(html, "text/html")
+        message.attach(
+            f"billet-{reservation.code}.png",
+            qr_code_png(reservation.code),
+            "image/png",
+        )
         message.send(fail_silently=False)
         reservation.billet_envoye = True
         reservation.save(update_fields=['billet_envoye'])
+        return True
+    except Exception:
+        return False
+
+
+def envoyer_annulation_email(reservation):
+    """
+    Envoie un e-mail d'annulation au passager s'il a renseigné une adresse.
+    Procède silencieusement en cas d'échec : l'annulation reste effective.
+    """
+    if not reservation.email:
+        return False
+
+    sujet = f"Votre réservation SILIMU a été annulée ({reservation.code})"
+    contexte = {"reservation": reservation}
+    texte = render_to_string("reservations/email/annulation.txt", contexte)
+    html = render_to_string("reservations/email/annulation.html", contexte)
+
+    try:
+        message = EmailMultiAlternatives(
+            sujet, texte, settings.DEFAULT_FROM_EMAIL, [reservation.email]
+        )
+        message.attach_alternative(html, "text/html")
+        message.send(fail_silently=False)
         return True
     except Exception:
         return False
