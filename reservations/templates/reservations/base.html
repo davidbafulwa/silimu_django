@@ -1,89 +1,220 @@
-{% load humanize %}
+{% load static %}
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" class="scroll-smooth">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{% block title %}SILIMU — Transport lacustre{% endblock %}</title>
+<meta name="description" content="SILIMU — Réservation de billets de transport lacustre à bord de bateaux modernes sur le lac Kivu (Sud-Kivu &amp; Nord-Kivu) et le lac Tanganyika. Paiement Mobile Money, e-billet avec QR code.">
+<title>{% block title %}SILIMU — Transport lacustre au Kivu{% endblock %}</title>
+<script>
+  window.tailwind = { config: {
+    theme: {
+      extend: {
+        colors: {
+          navy:   '#07303f',
+          deep:   '#0b2430',
+          aqua:   '#0fb5b0',
+          teal:   '#0b7285',
+          sunset: '#f47533',
+          ember:  '#e8622a',
+          sand:   '#f6f2ea',
+          mist:   '#eef4f6',
+          paper:  '#f6f2ea',
+          ink:    '#123140',
+        },
+        fontFamily: {
+          display: ['Sora','Plus Jakarta Sans','sans-serif'],
+          sans:    ['Plus Jakarta Sans','Inter','system-ui','sans-serif'],
+          mono:    ['JetBrains Mono','ui-monospace','monospace'],
+        },
+        boxShadow: {
+          soft: '0 6px 30px -12px rgba(7,48,63,0.18)',
+          lift: '0 18px 50px -20px rgba(7,48,63,0.35)',
+        },
+      }
+    }
+  }};
+</script>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%2307303f'/%3E%3Cpath d='M8 40c6-8 12-8 16-2s12 6 18 0 10-6 14-2v10H8z' fill='%230fb5b0'/%3E%3Cpath d='M8 30c6-8 12-8 16-2s12 6 18 0 10-6 14-2' fill='none' stroke='%23f47533' stroke-width='4' stroke-linecap='round'/%3E%3Cpath d='M24 52h16' stroke='%23f6f2ea' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E">
 <style>
   :root{
-    --lake-deep:#0B3D4C; --lake-teal:#1C7C8C; --dock-sand:#C9A876;
-    --sunset:#E8734A; --paper:#F6F1E4; --ink:#152A2F;
+    --lake-deep:#07303f; --lake-teal:#0b7285; --dock-sand:#d8c9a8;
+    --sunset:#f47533; --paper:#f6f2ea; --ink:#123140;
   }
   *{box-sizing:border-box;}
-  body{font-family:'Inter',sans-serif;background:var(--paper);color:var(--ink);}
-  .font-display{font-family:'Fraunces',serif;}
-  .font-mono{font-family:'Space Mono',monospace;}
-  .bg-lake{background:var(--lake-deep);} .bg-teal{background:var(--lake-teal);}
-  .text-lake{color:var(--lake-deep);} .text-teal{color:var(--lake-teal);}
-  .text-sunset{color:var(--sunset);} .bg-sunset{background:var(--sunset);}
-  .border-dock{border-color:var(--dock-sand);}
+  html{scroll-behavior:smooth;}
+  body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:var(--paper);color:var(--ink);}
   ::selection{background:var(--sunset); color:#fff;}
+  ::-webkit-scrollbar{width:10px;height:10px;}
+  ::-webkit-scrollbar-thumb{background:#9cc2cb;border-radius:8px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+
+  /* ─── Compatibilité avec les anciens templates ─────────────── */
+  .font-display{font-family:'Sora',sans-serif;}
+  .font-mono{font-family:'JetBrains Mono',monospace;}
+  .bg-lake{background:var(--lake-deep);}.bg-teal{background:var(--lake-teal);}
+  .text-lake{color:var(--lake-deep);}.text-teal{color:var(--lake-teal);}
+  .text-sunset{color:var(--sunset);}.bg-sunset{background:var(--sunset);}
+  .border-dock{border-color:var(--dock-sand);}
   .ripple-bg{
     background-image:
       repeating-radial-gradient(circle at 20% 30%, rgba(255,255,255,0.05) 0, rgba(255,255,255,0.05) 1px, transparent 1px, transparent 60px),
       repeating-radial-gradient(circle at 80% 70%, rgba(255,255,255,0.04) 0, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 80px);
   }
-  .wave-divider{
-    height:28px;
-    background: linear-gradient(135deg, var(--lake-teal) 25%, transparent 25%) -14px 0,
-                linear-gradient(225deg, var(--lake-teal) 25%, transparent 25%) -14px 0,
-                linear-gradient(315deg, var(--lake-teal) 25%, transparent 25%),
-                linear-gradient(45deg, var(--lake-teal) 25%, transparent 25%);
-    background-size: 28px 28px; opacity:0.9;
-  }
-  .ticket{position:relative; background:#fff; border-radius:18px; box-shadow:0 20px 50px -20px rgba(11,61,76,0.45);}
-  .perf{position:relative; height:0; border-top:2px dashed #d8cfba;}
-  .perf::before, .perf::after{content:""; position:absolute; top:-11px; width:22px; height:22px; border-radius:50%; background:var(--paper);}
-  .perf::before{left:-11px;} .perf::after{right:-11px;}
-  .dot-code{background-image: repeating-linear-gradient(90deg, var(--ink) 0 2px, transparent 2px 4px); height:34px;}
-  .tab-btn.active{background:var(--lake-deep); color:#fff;}
-  .tab-btn:not(.active):hover{background:rgba(11,61,76,0.08);}
-  .board-row:hover{background:rgba(28,124,140,0.06);}
+
+  /* ─── Composants ────────────────────────────────────────────── */
+  .kicker{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.28em;
+          text-transform:uppercase;font-weight:700;color:var(--sunset);}
+  .title-grad{background:linear-gradient(100deg,#ffffff 30%, #8fd8e0 70%, #0fb5b0 95%);
+              -webkit-background-clip:text;background-clip:text;color:transparent;}
+  .title-grad-sun{background:linear-gradient(100deg,#f47533,#f8af3c);
+              -webkit-background-clip:text;background-clip:text;color:transparent;}
+
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;font-weight:700;
+       border-radius:9999px;transition:all .25s ease;cursor:pointer;line-height:1;}
+  .btn-primary{background:linear-gradient(135deg,#f47533,#e8622a);color:#fff;
+               box-shadow:0 10px 24px -10px rgba(232,98,42,.65);}
+  .btn-primary:hover{filter:brightness(1.06);transform:translateY(-1px);}
+  .btn-dark{background:#07303f;color:#fff;}
+  .btn-dark:hover{background:#0b2430;transform:translateY(-1px);}
+  .btn-ghost{border:1.5px solid rgba(255,255,255,.35);color:#fff;background:rgba(255,255,255,.06);}
+  .btn-ghost:hover{background:rgba(255,255,255,.16);}
+  .btn-outline{border:1.5px solid #07303f;color:#07303f;background:transparent;}
+  .btn-outline:hover{background:#07303f;color:#fff;}
+
+  .glass{background:rgba(255,255,255,.78);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);}
+
+  .label{display:block;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.14em;
+         text-transform:uppercase;font-weight:700;color:#0b7285;margin-bottom:.4rem;}
+  .input,.form-card input:not([type=hidden]),.admin-form input:not([type=hidden]),
+  .form-card select,.admin-form select,.admin-form textarea{width:100%;border:1.5px solid #d8c9a8;border-radius:.8rem;padding:.72rem .95rem;
+         font-size:.95rem;background:#fff;color:#123140;transition:border-color .2s, box-shadow .2s;}
+  .input:focus,.form-card input:focus,.form-card select:focus,
+  .admin-form input:focus,.admin-form select:focus,.admin-form textarea:focus{outline:none;border-color:#0fb5b0;box-shadow:0 0 0 4px rgba(15,181,176,.15);}
+  .input::placeholder,.form-card input::placeholder,.admin-form input::placeholder{color:#8aa7b1;}
+  select.input,.form-card select,.admin-form select{-webkit-appearance:none;appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%230b7285' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right .8rem center;padding-right:2.4rem;}
+
+  .tab-btn{transition:all .2s ease;border-radius:9999px;font-weight:600;font-size:.9rem;
+           padding:.5rem .9rem;color:#3d6370;white-space:nowrap;}
+  .tab-btn:hover{background:rgba(7,48,63,.08);color:#07303f;}
+  .tab-btn.active{background:#07303f;color:#fff;box-shadow:0 6px 16px -6px rgba(7,48,63,.5);}
+
+  .board-row:hover{background:rgba(15,181,176,.07);}
   .focus-ring:focus{outline:2px solid var(--sunset); outline-offset:2px;}
-  input, select{background:#fff;}
-  @media print { header, .no-print { display:none !important; } body{background:#fff;} }
+
+  .card{background:#fff;border-radius:1.25rem;border:1px solid rgba(7,48,63,.06);
+        box-shadow:0 6px 30px -12px rgba(7,48,63,.12);}
+
+  .ticket{position:relative;background:#fff;border-radius:18px;
+          box-shadow:0 20px 50px -20px rgba(7,48,63,.35);}
+  .perf{position:relative;height:0;border-top:2px dashed #dfd6c0;}
+  .perf::before,.perf::after{content:"";position:absolute;top:-11px;width:22px;height:22px;border-radius:50%;background:var(--paper);}
+  .perf::before{left:-11px;}.perf::after{right:-11px;}
+  .dot-code{background-image:repeating-linear-gradient(90deg,var(--ink) 0 2px,transparent 2px 4px);height:34px;}
+
+  /* ─── Animations d'apparition ───────────────────────────────── */
+  .reveal{opacity:0;transform:translateY(26px);
+          transition:opacity .7s ease,transform .7s cubic-bezier(.16,1,.3,1);
+          transition-delay:var(--d,0s);}
+  .reveal.is-visible{opacity:1;transform:none;}
+  @media (prefers-reduced-motion: reduce){
+    .reveal{opacity:1;transform:none;transition:none;}
+    html{scroll-behavior:auto;}
+  }
+
+  /* ─── Marquee annonces ──────────────────────────────────────── */
+  .marquee{display:flex;gap:3rem;white-space:nowrap;animation:marquee 28s linear infinite;}
+  @keyframes marquee{to{transform:translateX(-50%);}}
+
+  @media print{
+    body{background:#fff !important;}
+    .no-print{display:none !important;}
+  }
 </style>
+<noscript><style>.reveal{opacity:1;transform:none;}</style></noscript>
 {% block extra_head %}{% endblock %}
 </head>
-<body class="min-h-screen">
+<body class="min-h-screen flex flex-col">
 
-<header class="bg-lake ripple-bg text-white sticky top-0 z-30 shadow-lg">
-  <div class="max-w-6xl mx-auto px-5 pt-5 pb-4 flex items-center justify-between gap-4 flex-wrap">
-    <a href="{% url 'home' %}" class="flex items-center gap-3">
-      <div class="w-11 h-11 rounded-full bg-sunset flex items-center justify-center font-display text-xl font-bold shrink-0">S</div>
-      <div>
-        <div class="font-display text-2xl font-bold tracking-tight leading-none">SILIMU</div>
-        <div class="font-mono text-[11px] tracking-widest text-teal-100/80 uppercase mt-0.5">Transport lacustre</div>
-      </div>
+{% block announce %}
+<div class="no-print overflow-hidden bg-gradient-to-r from-deep via-navy to-teal text-white text-[13px] py-2">
+  <div class="marquee items-center" aria-hidden="true">
+    <span class="font-semibold">🚢 Billets en ligne : Bukavu ⇄ Goma, Idjwi, Minova, Uvira, Kalemie…</span>
+    <span>📱 Paiement Mobile Money — Orange, Airtel, M-Pesa — ou carte bancaire</span>
+    <span>🎫 E-billet avec QR code, imprimable, envoyé par e-mail</span>
+    <span>🌋 Sud-Kivu &amp; Nord-Kivu : traversées chaque jour dès 7h00</span>
+    <span class="font-semibold">🚢 Billets en ligne : Bukavu ⇄ Goma, Idjwi, Minova, Uvira, Kalemie…</span>
+    <span>📱 Paiement Mobile Money — Orange, Airtel, M-Pesa — ou carte bancaire</span>
+    <span>🎫 E-billet avec QR code, imprimable, envoyé par e-mail</span>
+    <span>🌋 Sud-Kivu &amp; Nord-Kivu : traversées chaque jour dès 7h00</span>
+  </div>
+</div>
+{% endblock %}
+
+<header class="no-print sticky top-0 z-40 glass border-b border-white/50 shadow-soft">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-4 h-16 md:h-[72px]">
+    <a href="{% url 'home' %}" class="flex items-center gap-2.5 shrink-0">
+      <svg viewBox="0 0 64 64" class="w-10 h-10 md:w-11 md:h-11 drop-shadow" aria-hidden="true">
+        <rect width="64" height="64" rx="16" fill="#07303f"/>
+        <path d="M8 40c6-8 12-8 16-2s12 6 18 0 10-6 14-2v10H8z" fill="#0fb5b0"/>
+        <path d="M8 30c6-8 12-8 16-2s12 6 18 0 10-6 14-2" fill="none" stroke="#f47533" stroke-width="4" stroke-linecap="round"/>
+        <path d="M24 52h16" stroke="#f6f2ea" stroke-width="5" stroke-linecap="round"/>
+      </svg>
+      <span class="leading-none">
+        <span class="font-display font-extrabold text-2xl tracking-tight text-navy block">SILIMU</span>
+        <span class="font-mono text-[10px] tracking-[0.3em] uppercase text-teal block">Lac Kivu · RDC</span>
+      </span>
     </a>
-    <nav class="flex gap-1 bg-white/10 rounded-full p-1 flex-wrap">
-      <a href="{% url 'home' %}" class="tab-btn {% if request.resolver_match.url_name == 'home' %}active{% endif %} px-4 py-2 rounded-full text-sm font-semibold">Réserver</a>
-      <a href="{% url 'mes_billets' %}" class="tab-btn {% if request.resolver_match.url_name == 'mes_billets' %}active{% endif %} px-4 py-2 rounded-full text-sm font-semibold">Mes billets</a>
+
+    <button class="md:hidden p-2 rounded-lg text-navy hover:bg-white/70" id="menu-btn" aria-label="Menu">
+      <svg id="icon-open" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+
+    <nav class="hidden md:flex items-center gap-1" id="main-nav">
+      <a href="{% url 'home' %}" class="tab-btn {% if request.resolver_match.url_name == 'home' or request.resolver_match.url_name == 'reserver' %}active{% endif %}">Réserver</a>
+      <a href="{% url 'mes_billets' %}" class="tab-btn {% if request.resolver_match.url_name == 'mes_billets' or request.resolver_match.url_name == 'billet' %}active{% endif %}">Mes billets</a>
       {% if passager %}
-        <a href="{% url 'compte_dashboard' %}" class="tab-btn {% if 'compte_' in request.resolver_match.url_name %}active{% endif %} px-4 py-2 rounded-full text-sm font-semibold">{{ passager.nom_complet|truncatechars:14 }}</a>
+        <a href="{% url 'compte_dashboard' %}" class="tab-btn {% if 'compte_' in request.resolver_match.url_name and request.resolver_match.url_name != 'compte_connexion' %}active{% endif %}">Mon compte</a>
       {% else %}
-        <a href="{% url 'compte_connexion' %}" class="tab-btn {% if 'compte_' in request.resolver_match.url_name %}active{% endif %} px-4 py-2 rounded-full text-sm font-semibold">Mon compte</a>
+        <a href="{% url 'compte_connexion' %}" class="tab-btn {% if request.resolver_match.url_name in 'compte_connexion,compte_inscription,compte_connexion_supabase,compte_inscription_supabase' %}active{% endif %}">Se connecter</a>
       {% endif %}
-      {% if request.user.is_authenticated and request.user.is_staff %}
-        <a href="{% if is_admin %}{% url 'admin_dashboard' %}{% else %}{% url 'admin_comptoir' %}{% endif %}" class="tab-btn {% if 'admin_' in request.resolver_match.url_name and request.resolver_match.url_name != 'admin_login' %}active{% endif %} px-4 py-2 rounded-full text-sm font-semibold">Admin</a>
-      {% else %}
-        <a href="{% url 'admin_login' %}" class="tab-btn {% if request.resolver_match.url_name == 'admin_login' %}active{% endif %} px-4 py-2 rounded-full text-sm font-semibold">Admin</a>
-      {% endif %}
+      <a href="{% if request.user.is_authenticated and request.user.is_staff %}{% if is_admin %}{% url 'admin_dashboard' %}{% else %}{% url 'admin_comptoir' %}{% endif %}{% else %}{% url 'admin_login' %}{% endif %}" class="ml-2 px-4 py-2 rounded-full border-2 border-navy text-navy font-bold text-sm hover:bg-navy hover:text-white transition">Espace pro</a>
     </nav>
   </div>
-  <div class="wave-divider"></div>
+  <div class="md:hidden border-t border-white/60 hidden" id="mobile-nav">
+    <div class="px-4 py-3 flex flex-col gap-1">
+      <a href="{% url 'home' %}" class="tab-btn {% if request.resolver_match.url_name == 'home' or request.resolver_match.url_name == 'reserver' %}active{% endif %}">Réserver</a>
+      <a href="{% url 'mes_billets' %}" class="tab-btn {% if request.resolver_match.url_name == 'mes_billets' or request.resolver_match.url_name == 'billet' %}active{% endif %}">Mes billets</a>
+      {% if passager %}
+        <a href="{% url 'compte_dashboard' %}" class="tab-btn {% if 'compte_' in request.resolver_match.url_name and request.resolver_match.url_name != 'compte_connexion' %}active{% endif %}">Mon compte</a>
+      {% else %}
+        <a href="{% url 'compte_connexion' %}" class="tab-btn {% if request.resolver_match.url_name in 'compte_connexion,compte_inscription' %}active{% endif %}">Se connecter</a>
+      {% endif %}
+      <a href="{% if request.user.is_authenticated and request.user.is_staff %}{% if is_admin %}{% url 'admin_dashboard' %}{% else %}{% url 'admin_comptoir' %}{% endif %}{% else %}{% url 'admin_login' %}{% endif %}" class="tab-btn">Espace pro</a>
+    </div>
+  </div>
 </header>
 
-<main class="max-w-6xl mx-auto px-5 pb-24">
+{% block hero %}{% endblock %}
+
+<main class="{% block main_class %}max-w-7xl mx-auto px-4 sm:px-6 pb-24 w-full{% endblock %}">
   {% if messages %}
     <div class="mt-6 space-y-2 no-print">
       {% for message in messages %}
-        <div class="rounded-lg px-4 py-3 text-sm font-medium {% if message.tags == 'success' %}bg-emerald-100 text-emerald-800{% elif message.tags == 'error' %}bg-red-100 text-red-800{% else %}bg-amber-100 text-amber-800{% endif %}">
-          {{ message }}
+        <div class="rounded-2xl px-5 py-3.5 text-sm font-semibold flex items-start gap-3 shadow-soft
+            {% if message.tags == 'success' %}bg-emerald-50 text-emerald-800 border border-emerald-200
+            {% elif message.tags == 'error' %}bg-red-50 text-red-800 border border-red-200
+            {% else %}bg-amber-50 text-amber-800 border border-amber-200{% endif %}">
+          <span class="mt-0.5">
+            {% if message.tags == 'success' %}✅{% elif message.tags == 'error' %}⚠️{% else %}ℹ️{% endif %}
+          </span>
+          <span>{{ message }}</span>
         </div>
       {% endfor %}
     </div>
@@ -91,9 +222,95 @@
   {% block content %}{% endblock %}
 </main>
 
-<footer class="bg-lake text-white/70 text-center text-xs font-mono py-5 mt-16 no-print">
-  Site développé par DanielBafulwa
+<footer class="no-print mt-auto bg-deep text-white/70">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 py-14 grid grid-cols-2 md:grid-cols-4 gap-10">
+    <div class="col-span-2 md:col-span-1">
+      <div class="flex items-center gap-2.5 mb-4">
+        <svg viewBox="0 0 64 64" class="w-9 h-9" aria-hidden="true">
+          <rect width="64" height="64" rx="16" fill="#07303f"/>
+          <path d="M8 40c6-8 12-8 16-2s12 6 18 0 10-6 14-2v10H8z" fill="#0fb5b0"/>
+          <path d="M8 30c6-8 12-8 16-2s12 6 18 0 10-6 14-2" fill="none" stroke="#f47533" stroke-width="4" stroke-linecap="round"/>
+        </svg>
+        <span class="font-display font-extrabold text-xl text-white">SILIMU</span>
+      </div>
+      <p class="text-sm leading-relaxed">La réservation de billets de bateau en ligne pour le lac Kivu et le lac Tanganyika. Simple, rapide et sécurisée — du Sud-Kivu au Nord-Kivu.</p>
+      <div class="mt-5 flex items-center gap-2 text-[11px] font-mono">
+        <span class="px-2 py-1 rounded-md bg-white/10 text-white">&lt;/&gt;</span>
+        <span>Site développé par <a href="https://davidbafulwa.github.io/portfolio/" target="_blank" rel="noopener" class="text-white font-semibold underline decoration-sunset decoration-2 underline-offset-4 hover:text-sunset transition">Daniel Bafulwa ↗</a></span>
+      </div>
+    </div>
+
+    <div>
+      <h4 class="text-white font-display font-semibold mb-4 text-sm uppercase tracking-widest">Naviguer</h4>
+      <ul class="space-y-2.5 text-sm">
+        <li><a class="hover:text-white transition" href="{% url 'home' %}">Rechercher un trajet</a></li>
+        <li><a class="hover:text-white transition" href="{% url 'mes_billets' %}">Retrouver un billet</a></li>
+        <li><a class="hover:text-white transition" href="{% url 'compte_inscription' %}">Créer un compte</a></li>
+        <li><a class="hover:text-white transition" href="{% url 'compte_connexion' %}">Mon espace passager</a></li>
+        <li><a class="hover:text-white transition" href="{% url 'admin_login' %}">Espace professionnel</a></li>
+      </ul>
+    </div>
+
+    <div>
+      <h4 class="text-white font-display font-semibold mb-4 text-sm uppercase tracking-widest">Destinations</h4>
+      <ul class="space-y-2.5 text-sm">
+        <li>Bukavu ⇄ Goma</li>
+        <li>Bukavu ⇄ Idjwi</li>
+        <li>Goma ⇄ Minova</li>
+        <li>Bukavu ⇄ Kalehe</li>
+        <li>Uvira ⇄ Kalemie</li>
+      </ul>
+    </div>
+
+    <div>
+      <h4 class="text-white font-display font-semibold mb-4 text-sm uppercase tracking-widest">Contact</h4>
+      <ul class="space-y-3 text-sm">
+        <li class="flex gap-3"><span>📍</span><span>Av. de la Paix, Quartier de l'Indépendance,<br><strong class="text-white">Bukavu</strong>, Sud-Kivu — RDC</span></li>
+        <li class="flex gap-3"><span>📍</span><span>Port de Kituku,<br><strong class="text-white">Goma</strong>, Nord-Kivu — RDC</span></li>
+        <li class="flex gap-3"><span>📞</span><a href="tel:+243990000000" class="hover:text-white transition">+243 990 000 000</a></li>
+        <li class="flex gap-3"><span>✉️</span><a href="mailto:contact@silimu.cd" class="hover:text-white transition">contact@silimu.cd</a></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="border-t border-white/10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
+      <span>© {% now "Y" %} SILIMU — Établissement de transport lacustre. Tous droits réservés.</span>
+      <div class="flex items-center gap-2">
+        <span class="text-white/50 mr-1">Paiement accepté :</span>
+        <span class="px-2.5 py-1 rounded-lg bg-white/10 font-mono text-[10px] font-bold text-white">Orange Money</span>
+        <span class="px-2.5 py-1 rounded-lg bg-white/10 font-mono text-[10px] font-bold text-white">Airtel</span>
+        <span class="px-2.5 py-1 rounded-lg bg-white/10 font-mono text-[10px] font-bold text-white">M-Pesa</span>
+        <span class="px-2.5 py-1 rounded-lg bg-white/10 font-mono text-[10px] font-bold text-white">Carte</span>
+      </div>
+    </div>
+  </div>
 </footer>
 
+<script>
+  (function(){
+    var btn  = document.getElementById('menu-btn');
+    var mob  = document.getElementById('mobile-nav');
+    if (btn && mob) {
+      btn.addEventListener('click', function(){
+        var hidden = mob.classList.toggle('hidden');
+        document.getElementById('icon-open').innerHTML = hidden
+          ? '<path d="M4 7h16M4 12h16M4 17h16"/>'
+          : '<path d="M6 6l12 12M18 6L6 18"/>';
+      });
+    }
+    if ('IntersectionObserver' in window) {
+      var io = new IntersectionObserver(function(entries){
+        entries.forEach(function(e){
+          if (e.isIntersecting){ e.target.classList.add('is-visible'); io.unobserve(e.target); }
+        });
+      }, {threshold: 0.12, rootMargin: '0px 0px -40px 0px'});
+      document.querySelectorAll('.reveal').forEach(function(el){ io.observe(el); });
+    } else {
+      document.querySelectorAll('.reveal').forEach(function(el){ el.classList.add('is-visible'); });
+    }
+  })();
+</script>
+{% block extra_scripts %}{% endblock %}
 </body>
 </html>
