@@ -3,7 +3,24 @@
 Conception et réalisation d'une application web de gestion de réservation
 de billets de transport lacustre : cas de l'établissement SILIMU.
 
-Stack : **Django (Python) + PostgreSQL**
+Stack : **Django (Python) + PostgreSQL / Supabase**
+
+<p align="center">
+  <a href="https://www.python.org"><img src="https://img.shields.io/badge/Python-3.11%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.11+"></a>
+  <a href="https://www.djangoproject.com"><img src="https://img.shields.io/badge/Django-5.2-092E20?style=flat-square&logo=django&logoColor=white" alt="Django 5.2"></a>
+  <a href="https://www.django-rest-framework.org"><img src="https://img.shields.io/badge/DRF-3.15-7f1d1d?style=flat-square&logo=django&logoColor=white" alt="Django REST Framework"></a>
+  <a href="https://tailwindcss.com"><img src="https://img.shields.io/badge/Tailwind%20CSS-3-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white" alt="Tailwind CSS 3"></a>
+  <a href="https://www.postgresql.org"><img src="https://img.shields.io/badge/PostgreSQL-14%2B-4169E1?style=flat-square&logo=postgresql&logoColor=white" alt="PostgreSQL 14+"></a>
+  <a href="https://supabase.com"><img src="https://img.shields.io/badge/Supabase-Auth%20%7C%20Storage-3ECF8E?style=flat-square&logo=supabase&logoColor=white" alt="Supabase"></a>
+  <a href="https://www.cinetpay.com"><img src="https://img.shields.io/badge/Paiement-CinetPay%20Mobile%20Money-f47533?style=flat-square" alt="CinetPay Mobile Money"></a>
+</p>
+<p align="center">
+  <a href="https://github.com/davidbafulwa/silimu_django"><img src="https://img.shields.io/badge/tests-28%20OK-success?style=flat-square" alt="Tests : 28 OK"></a>
+  <a href="https://github.com/davidbafulwa/silimu_django"><img src="https://img.shields.io/github/last-commit/davidbafulwa/silimu_django?style=flat-square&label=dernier%20commit" alt="Dernier commit"></a>
+  <a href="https://github.com/davidbafulwa/silimu_django"><img src="https://img.shields.io/github/contributors/davidbafulwa/silimu_django?style=flat-square&label=contributeurs" alt="Contributeurs"></a>
+  <a href="https://github.com/davidbafulwa/silimu_django"><img src="https://img.shields.io/github/languages/count/davidbafulwa/silimu_django?style=flat-square&label=langages" alt="Langages"></a>
+  <a href="https://github.com/davidbafulwa/silimu_django"><img src="https://img.shields.io/github/license/davidbafulwa/silimu_django?style=flat-square&label=licence" alt="Licence"></a>
+</p>
 
 ## 1. Fonctionnalités
 
@@ -146,7 +163,7 @@ u.groups.add(Group.objects.get(name='Agents guichet'))   # ou 'Administrateurs'
 ```bash
 python manage.py test reservations
 ```
-20 tests couvrent : génération des codes de billet, calcul des places disponibles,
+28 tests couvrent : génération des codes de billet, calcul des places disponibles,
 recherche, flux de paiement (succès/échec), rôles et permissions, vente au comptoir,
 exports, et l'API REST.
 
