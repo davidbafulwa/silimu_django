@@ -1,24 +1,57 @@
+databases:
+  - name: silimu-db
+    plan: free
+    databaseName: silimu
+    user: silimu
+
 services:
   - type: web
     name: silimu-django
-    env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn silimu.wsgi:application --bind 0.0.0.0:$PORT
+    runtime: python
+    plan: free
+    region: frankfurt
+    healthCheckPath: /
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
+    preDeployCommand: python manage.py migrate --noinput && python manage.py seed_data && python manage.py create_admin
+    startCommand: gunicorn silimu.wsgi:application --workers 2 --timeout 120 --bind 0.0.0.0:$PORT
     envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.11"
       - key: DJANGO_SECRET_KEY
         generateValue: true
       - key: DJANGO_DEBUG
         value: "False"
       - key: DJANGO_ALLOWED_HOSTS
-        value: ".onrender.com"
-      # Supabase — Remplacer par les valeurs de votre projet Supabase
+        value: ".onrender.com,127.0.0.1,localhost"
+      - key: DJANGO_CSRF_TRUSTED_ORIGINS
+        value: "https://*.onrender.com"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: silimu-db
+          property: connectionString
+      - key: DJANGO_ADMIN_USER
+        value: "admin"
+      - key: DJANGO_ADMIN_PASSWORD
+        sync: false
+      # E-mail (Brevo) — Secrets à renseigner dans le dashboard Render
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_SENDER_EMAIL
+        sync: false
+      # Paiement Mobile Money (CinetPay) — Secrets à renseigner
+      - key: CINETPAY_API_KEY
+        sync: false
+      - key: CINETPAY_SITE_ID
+        sync: false
+      - key: CINETPAY_CURRENCY
+        value: "CDF"
+      # Supabase — Auth & Storage des billets (facultatif ; si vide,
+      # l'authentification local Django et les billets locaux sont utilisés)
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_ANON_KEY
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
-        sync: false
-      - key: SUPABASE_DATABASE_URL
         sync: false
       - key: SUPABASE_STORAGE_BUCKET
         value: "billets"

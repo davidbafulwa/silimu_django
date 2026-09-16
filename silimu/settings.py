@@ -8,6 +8,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+import dj_database_url
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / '.env')
 
@@ -20,6 +22,9 @@ SECRET_KEY = os.environ.get(
 )
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
 ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '*').split(',')
+CSRF_TRUSTED_ORIGINS = [
+    o.strip() for o in os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',') if o.strip()
+]
 
 # --------------------------------------------------------------------
 # Applications
@@ -40,6 +45,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -71,12 +77,23 @@ WSGI_APPLICATION = 'silimu.wsgi.application'
 ASGI_APPLICATION = 'silimu.asgi.application'
 
 # --------------------------------------------------------------------
-# Base de données — Supabase PostgreSQL / PostgreSQL autonome / SQLite
+# Base de données — PostgreSQL (Render / Supabase) / SQLite
 # --------------------------------------------------------------------
-# Si SUPABASE_URL est défini, on utilise la chaîne de connexion Supabase.
-# Sinon, on utilise les variables DB_* classiques, ou SQLite par défaut.
-SUPABASE_DATABASE_URL = os.environ.get('SUPABASE_DATABASE_URL', '')
-if SUPABASE_DATABASE_URL:
+# DATABASE_URL (style dj-database-url) : prioritaire — c'est le format
+# fourni par PostgreSQL managé de Render et par le pooler Supabase.
+# Sinon SUPABASE_DATABASE_URL, puis les variables DB_* classiques,
+# puis SQLite (développement local).
+DATABASE_URL = os.environ.get('DATABASE_URL', '')
+if DATABASE_URL:
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=DATABASE_URL,
+            conn_max_age=600,
+            conn_health_checks=True,
+            ssl_require='render' not in DATABASE_URL,
+        )
+    }
+elif os.environ.get('SUPABASE_DATABASE_URL', ''):
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
@@ -133,6 +150,14 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STORAGES = {
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage',
+    },
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+}
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
