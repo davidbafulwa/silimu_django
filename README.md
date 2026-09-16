@@ -5,6 +5,8 @@ de billets de transport lacustre : cas de l'établissement SILIMU.
 
 Stack : **Django (Python) + PostgreSQL / Supabase**
 
+> 🚢 Application **réalisée par [Daniel Bafulwa](https://github.com/danielbafulwa)** — conception, développement et design.
+
 <p align="center">
   <a href="https://www.python.org"><img src="https://img.shields.io/badge/Python-3.11%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.11+"></a>
   <a href="https://www.djangoproject.com"><img src="https://img.shields.io/badge/Django-5.2-092E20?style=flat-square&logo=django&logoColor=white" alt="Django 5.2"></a>
@@ -250,7 +252,14 @@ n'est nécessaire : le même site s'adapte à la taille de l'écran.
 - Voir `MCD_MLD.md` pour le détail du modèle conceptuel et logique de données,
   directement réutilisable dans le chapitre « Conception » de votre rapport de TP.
 
-## 10. Historique des évolutions
+## 10. Auteur
+
+- **Nom :** Daniel Bafulwa
+- **E-mail :** davidbafulwa@gmail.com
+- **GitHub :** [@danielbafulwa](https://github.com/danielbafulwa)
+- **Technologies :** Django (Python) · PostgreSQL / Supabase · Tailwind CSS · CinetPay
+
+## 11. Historique des évolutions
 
 **Déjà en place dans ce livrable :**
 - Paiement Mobile Money / carte réel (CinetPay)
