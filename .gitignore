@@ -4,9 +4,22 @@ __pycache__/
 db.sqlite3
 db_test.sqlite3
 staticfiles/
+
+# Secrets & certificats — jamais sur GitHub
 .env
-.env.*.bak
+.env*
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.jks
+keys/
 certs/
 static/certs/
 static/cert.crt
 static/cert.pem
+
+# Journaux & fichiers locaux
+*.log
+*.pid
