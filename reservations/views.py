@@ -1,5 +1,4 @@
 import csv
-from decimal import Decimal
 from io import BytesIO
 
 from django.contrib import messages
@@ -8,11 +7,12 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.db.models import Sum, Q, Count, Min
 from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
-from . import cinetpay
+from . import cinetpay, services
 from .auth_backends import SupabaseAuthentication
 from .decorators import admin_required, agent_required, est_administrateur, passager_connecte, passager_required
 from .forms import (
@@ -20,8 +20,11 @@ from .forms import (
     RouteForm, BateauForm, TraverseeForm,
     PassagerInscriptionForm, PassagerConnexionForm,
 )
-from .models import Route, Bateau, Traversee, Reservation, Passager
-from .notifications import envoyer_billet_email, alerter_admin_traversee_pleine
+from .models import (
+    Route, Bateau, Traversee, Reservation, Passager, Port,
+    Embarquement, Remboursement, NotificationInterne,
+)
+from .notifications import envoyer_billet_email, alerter_admin_traversee_pleine, verifier_signature
 from .supabase_client import sign_up as supabase_sign_up, sign_in as supabase_sign_in, sign_out as supabase_sign_out
 
 
@@ -37,42 +40,49 @@ def home(request):
         traversees = Traversee.objects.select_related('route', 'bateau').filter(
             date__gte=timezone.localdate(),
             bateau__en_service=True,  # un bateau en maintenance n'est jamais proposé
+            statut=Traversee.Statut.PROGRAMMEE,  # une traversée annulée/retardée/partie non plus
         )
         if form.is_valid():
             depart = form.cleaned_data.get('depart')
             arrivee = form.cleaned_data.get('arrivee')
             date = form.cleaned_data.get('date')
             if depart:
-                traversees = traversees.filter(route__port_depart=depart)
+                traversees = traversees.filter(route__port_depart__nom=depart)
             if arrivee:
-                traversees = traversees.filter(route__port_arrivee=arrivee)
+                traversees = traversees.filter(route__port_arrivee__nom=arrivee)
             if date:
                 traversees = traversees.filter(date=date)
         resultats = traversees.order_by('date', 'heure')
 
-    ports = sorted(set(
-        list(Route.objects.values_list('port_depart', flat=True)) +
-        list(Route.objects.values_list('port_arrivee', flat=True))
-    ))
+    ports = list(
+        Port.objects.filter(est_actif=True).values_list('nom', flat=True).order_by('nom')
+    ) or sorted(
+        set(
+            list(Route.objects.values_list('port_depart__nom', flat=True)) +
+            list(Route.objects.values_list('port_arrivee__nom', flat=True))
+        )
+    )
 
     # Prochains départs (vitrine "en direct") + tarifs "à partir de" par port
     aujourdhui = timezone.localdate()
     prochains = Traversee.objects.select_related('route', 'bateau').filter(
-        date__gte=aujourdhui, bateau__en_service=True
+        date__gte=aujourdhui, bateau__en_service=True, statut=Traversee.Statut.PROGRAMMEE,
     ).order_by('date', 'heure')[:5]
 
-    a_futur = Traversee.objects.filter(date__gte=aujourdhui, bateau__en_service=True)
+    a_futur = Traversee.objects.filter(date__gte=aujourdhui, bateau__en_service=True, statut=Traversee.Statut.PROGRAMMEE)
     prix_par_port = {}
-    for ligne in a_futur.values('route__port_depart').annotate(prix_min=Min('prix')):
-        prix_par_port[ligne['route__port_depart']] = ligne['prix_min']
-    for ligne in a_futur.values('route__port_arrivee').annotate(prix_min=Min('prix')):
-        prix_par_port.setdefault(ligne['route__port_arrivee'], ligne['prix_min'])
+    for ligne in a_futur.values('route__port_depart__nom').annotate(prix_min=Min('prix')):
+        prix_par_port[ligne['route__port_depart__nom']] = ligne['prix_min']
+    for ligne in a_futur.values('route__port_arrivee__nom').annotate(prix_min=Min('prix')):
+        prix_par_port.setdefault(ligne['route__port_arrivee__nom'], ligne['prix_min'])
 
     stats_marketing = {
         'ports': len(ports),
         'bateaux': Bateau.objects.filter(en_service=True).count(),
         'lignes': Route.objects.count(),
-        'departs_aujourdhui': Traversee.objects.filter(date=aujourdhui, bateau__en_service=True).count(),
+        'departs_aujourdhui': Traversee.objects.filter(
+            date=aujourdhui, bateau__en_service=True, statut=Traversee.Statut.PROGRAMMEE
+        ).count(),
     }
 
     # ── Contenus marketing de la page d'accueil ─────────────────────────
@@ -147,19 +157,32 @@ def passager_lookup(request, telephone):
 
 
 def reserver(request, traversee_id):
-    traversee = get_object_or_404(Traversee.objects.select_related('route', 'bateau'), pk=traversee_id)
+    traversee = get_object_or_404(
+        Traversee.objects.select_related('route', 'bateau', 'route__port_depart', 'route__port_arrivee'),
+        pk=traversee_id
+    )
+    if not traversee.est_disponible():
+        messages.error(request, "Cette traversée n'est plus disponible à la réservation.")
+        return redirect('home')
     passager = passager_connecte(request)
 
     if request.method == 'POST':
         form = ReservationForm(request.POST, traversee=traversee)
         if form.is_valid():
-            reservation = form.save(commit=False)
-            reservation.traversee = traversee
-            reservation.total = Decimal(reservation.nb_places) * traversee.prix
-            reservation.statut = Reservation.Statut.EN_ATTENTE
-            if passager:
-                reservation.passager = passager
-            reservation.save()
+            try:
+                reservation = services.reserver_place(
+                    traversee,
+                    nom_passager=form.cleaned_data['nom_passager'],
+                    telephone=form.cleaned_data['telephone'],
+                    email=form.cleaned_data.get('email', ''),
+                    nb_places=form.cleaned_data['nb_places'],
+                    mode_paiement=form.cleaned_data['mode_paiement'],
+                    passager=passager,
+                    statut=Reservation.Statut.EN_ATTENTE,
+                )
+            except services.SurbookingError as exc:
+                messages.error(request, str(exc))
+                return redirect('reserver', traversee_id=traversee.id)
 
             # ── Paiement au guichet (espèces) : pas de CinetPay, le passager
             #    viendra régler et il recevra son billet une fois encaissé. ──
@@ -241,7 +264,10 @@ def paiement_retour(request, code):
     on revérifie auprès de CinetPay pour donner un retour fiable et immédiat.
     """
     reservation = get_object_or_404(
-        Reservation.objects.select_related('traversee', 'traversee__route', 'traversee__bateau'),
+        Reservation.objects.select_related(
+            'traversee', 'traversee__route', 'traversee__bateau',
+            'embarquement', 'embarquement__valide_par',
+        ),
         code=code
     )
 
@@ -265,7 +291,10 @@ def paiement_retour(request, code):
 
 def billet(request, code):
     reservation = get_object_or_404(
-        Reservation.objects.select_related('traversee', 'traversee__route', 'traversee__bateau'),
+        Reservation.objects.select_related(
+            'traversee', 'traversee__route', 'traversee__bateau',
+            'embarquement', 'embarquement__valide_par',
+        ),
         code=code
     )
     return render(request, 'reservations/ticket.html', {
@@ -280,7 +309,8 @@ def mes_billets(request):
     if request.GET.get('q'):
         q = request.GET['q'].strip()
         resultats = Reservation.objects.select_related(
-            'traversee', 'traversee__route', 'traversee__bateau'
+            'traversee', 'traversee__route', 'traversee__bateau',
+            'embarquement', 'embarquement__valide_par',
         ).filter(Q(code__iexact=q) | Q(telephone__iexact=q))
     return render(request, 'reservations/mes_billets.html', {
         'form': form,
@@ -405,11 +435,24 @@ def compte_deconnexion(request):
 def compte_dashboard(request):
     passager = passager_connecte(request)
     reservations = passager.reservations.select_related(
-        'traversee', 'traversee__route', 'traversee__bateau'
+        'traversee', 'traversee__route', 'traversee__bateau',
+        'embarquement', 'embarquement__valide_par',
     ).order_by('-date_creation')
+
+    from .fidelite import compter_voyages, SEUIL_FIDELITE
+    voyages = compter_voyages(passager.telephone)
+    from .models import RecompenseFidelite
+    recompenses = RecompenseFidelite.objects.filter(
+        telephone=passager.telephone
+    ).order_by('-cree_le')
     return render(request, 'reservations/compte_dashboard.html', {
         'passager': passager,
         'reservations': reservations,
+        'voyages_fidelite': voyages,
+        'reste_pour_billet': SEUIL_FIDELITE - (voyages % SEUIL_FIDELITE),
+        'progression_pct': round((voyages % SEUIL_FIDELITE) / SEUIL_FIDELITE * 100),
+        'recompenses_disponibles': recompenses.filter(utilisee=False),
+        'recompenses': recompenses,
     })
 
 
@@ -417,6 +460,7 @@ def compte_dashboard(request):
 # Authentification back-office
 # ---------------------------------------------------------------------
 
+@csrf_exempt
 def admin_login(request):
     if request.user.is_authenticated and request.user.is_staff:
         return redirect('admin_dashboard' if est_administrateur(request.user) else 'admin_comptoir')
@@ -447,18 +491,28 @@ def admin_comptoir(request):
     traversee = None
     traversee_id = request.GET.get('traversee') or request.POST.get('traversee')
     if traversee_id:
-        traversee = get_object_or_404(Traversee.objects.select_related('route', 'bateau'), pk=traversee_id)
+        traversee = get_object_or_404(
+            Traversee.objects.select_related('route', 'bateau', 'route__port_depart', 'route__port_arrivee'),
+            pk=traversee_id
+        )
 
     if request.method == 'POST' and traversee:
         form = ReservationComptoirForm(request.POST, traversee=traversee)
         if form.is_valid():
-            reservation = form.save(commit=False)
-            reservation.traversee = traversee
-            reservation.total = Decimal(reservation.nb_places) * traversee.prix
-            reservation.mode_paiement = Reservation.ModePaiement.ESPECES
-            reservation.statut = Reservation.Statut.CONFIRME  # encaissé sur place, immédiatement confirmé
-            reservation.enregistre_par = request.user
-            reservation.save()
+            try:
+                reservation = services.reserver_place(
+                    traversee,
+                    nom_passager=form.cleaned_data['nom_passager'],
+                    telephone=form.cleaned_data['telephone'],
+                    email=form.cleaned_data.get('email', ''),
+                    nb_places=form.cleaned_data['nb_places'],
+                    mode_paiement=Reservation.ModePaiement.ESPECES,
+                    enregistre_par=request.user,
+                    statut=Reservation.Statut.CONFIRME,  # encaissé sur place, immédiatement confirmé
+                )
+            except services.SurbookingError as exc:
+                messages.error(request, str(exc))
+                return redirect(f"{reverse('admin_comptoir')}?traversee={traversee.id}")
             _finaliser_si_payee(reservation)
             messages.success(request, f"Billet {reservation.code} enregistré et payé en espèces.")
             return redirect('billet', code=reservation.code)
@@ -466,7 +520,7 @@ def admin_comptoir(request):
         form = ReservationComptoirForm(traversee=traversee) if traversee else None
 
     traversees_du_jour = Traversee.objects.select_related('route', 'bateau').filter(
-        date__gte=timezone.localdate(), bateau__en_service=True
+        date__gte=timezone.localdate(), bateau__en_service=True, statut=Traversee.Statut.PROGRAMMEE
     ).order_by('date', 'heure')[:100]
 
     return render(request, 'reservations/admin_comptoir.html', {
@@ -485,7 +539,7 @@ def admin_dashboard(request):
     payees = Reservation.objects.filter(statut=Reservation.Statut.CONFIRME)
 
     par_ligne = (
-        payees.values('traversee__route__port_depart', 'traversee__route__port_arrivee')
+        payees.values('traversee__route__port_depart__nom', 'traversee__route__port_arrivee__nom')
         .annotate(recette=Sum('total'), places=Sum('nb_places'))
         .order_by('-recette')
     )
@@ -516,7 +570,7 @@ def admin_dashboard(request):
 
     traversees_a_venir = Traversee.objects.select_related('route', 'bateau').filter(
         date__gte=timezone.localdate()
-    ).order_by('date', 'heure')[:30]
+    ).exclude(statut=Traversee.Statut.ANNULEE).order_by('date', 'heure')[:30]
     taux_moyen = 0
     liste_taux = [t.taux_remplissage() for t in traversees_a_venir if t.bateau.capacite]
     if liste_taux:
@@ -528,6 +582,8 @@ def admin_dashboard(request):
         'par_bateau': list(par_bateau),
         'par_mode': list(par_mode),
         'taux_moyen': taux_moyen,
+        'notifications': NotificationInterne.objects.select_related('recompense')[:8],
+        'nb_notifications_non_lues': NotificationInterne.objects.filter(lue=False).count(),
     })
 
 
@@ -609,16 +665,8 @@ def admin_trips(request):
             return redirect('admin_trips')
     else:
         form = TraverseeForm()
-    traversees = Traversee.objects.select_related('route', 'bateau').order_by('date', 'heure')
+    traversees = Traversee.objects.select_related('route', 'bateau', 'route__port_depart', 'route__port_arrivee').order_by('date', 'heure')
     return render(request, 'reservations/admin_trips.html', {'form': form, 'traversees': traversees})
-
-
-@admin_required
-def admin_trip_delete(request, pk):
-    traversee = get_object_or_404(Traversee, pk=pk)
-    traversee.delete()
-    messages.success(request, "Traversée supprimée.")
-    return redirect('admin_trips')
 
 
 # ---------------------------------------------------------------------
@@ -629,7 +677,7 @@ def admin_trip_delete(request, pk):
 def admin_bookings(request):
     reservations = Reservation.objects.select_related(
         'traversee', 'traversee__route', 'traversee__bateau'
-    ).order_by('-date_creation')
+    ).prefetch_related('remboursements').order_by('-date_creation')
     return render(request, 'reservations/admin_bookings.html', {'reservations': reservations})
 
 
@@ -655,12 +703,31 @@ def admin_booking_confirm(request, pk):
 
 @agent_required
 def admin_booking_cancel(request, pk):
+    """Annule une réservation. Si elle avait été payée (CONFIRME), un
+    remboursement est tracé automatiquement (motif « Annulation du billet »)."""
     reservation = get_object_or_404(Reservation, pk=pk)
+    deja_payee = reservation.statut == Reservation.Statut.CONFIRME
+
     reservation.statut = Reservation.Statut.ANNULE
-    reservation.save()
-    from .notifications import envoyer_annulation_email
-    envoyer_annulation_email(reservation)
-    messages.success(request, f"Réservation {reservation.code} annulée.")
+    reservation.expire_le = None
+    reservation.save(update_fields=['statut', 'expire_le'])
+
+    if deja_payee:
+        Remboursement.objects.create(
+            reservation=reservation,
+            montant=reservation.total,
+            motif=Remboursement.Motif.ANNULATION,
+            cree_par=request.user,
+            notes="Annulation depuis le back-office SILIMU.",
+        )
+        from .notifications import envoyer_annulation_email
+        envoyer_annulation_email(reservation)
+        messages.success(
+            request,
+            f"Réservation {reservation.code} annulée et remboursement de {reservation.total:,.0f} FC tracé.".replace(',', ' '),
+        )
+    else:
+        messages.success(request, f"Réservation {reservation.code} annulée.")
     return redirect('admin_bookings')
 
 
@@ -765,3 +832,246 @@ def export_bookings_pdf(request):
     response = HttpResponse(buffer.read(), content_type='application/pdf')
     response['Content-Disposition'] = 'attachment; filename="reservations_silimu.pdf"'
     return response
+
+
+# ---------------------------------------------------------------------
+# Back-office — Exploitation : statut des traversées
+# ---------------------------------------------------------------------
+
+@admin_required
+@require_POST
+def admin_trip_statut(request, pk):
+    """Change le statut opérationnel d'une traversée. En cas d'annulation :
+    remboursement tracé + e-mail pour les billets payés, libération des
+    attentes de paiement. En cas de retard/départ : préavis e-mail."""
+    traversee = get_object_or_404(Traversee.objects.select_related('route', 'bateau'), pk=pk)
+    nouveau = request.POST.get('statut')
+    if nouveau not in [s.value for s in Traversee.Statut]:
+        messages.error(request, "Statut invalide.")
+        return redirect('admin_trips')
+    if nouveau == traversee.statut:
+        messages.info(request, f"La traversée est déjà « {traversee.get_statut_display()} ».")
+        return redirect('admin_trips')
+
+    ancien = traversee.statut
+    traversee.statut = nouveau
+    traversee.save(update_fields=['statut'])
+
+    if nouveau == Traversee.Statut.ANNULEE:
+        from .notifications import envoyer_annulation_email
+        for reservation in traversee.reservations.select_related('passager'):
+            if reservation.statut == Reservation.Statut.CONFIRME:
+                Remboursement.objects.create(
+                    reservation=reservation,
+                    montant=reservation.total,
+                    motif=Remboursement.Motif.TRAVERSEE_ANNULEE,
+                    cree_par=request.user,
+                    notes=f"Traversée annulée ({ancien} → ANNULEE).",
+                )
+                reservation.statut = Reservation.Statut.ANNULE
+                reservation.expire_le = None
+                reservation.save(update_fields=['statut', 'expire_le'])
+                envoyer_annulation_email(reservation)
+            elif reservation.statut == Reservation.Statut.EN_ATTENTE:
+                reservation.marquer_echec()
+        traversee.alerte_remplissage_envoyee = False
+        traversee.save(update_fields=['alerte_remplissage_envoyee'])
+        messages.success(
+            request,
+            f"Traversée annulée : {traversee.reservations.filter(statut=Reservation.Statut.ANNULE).count()} "
+            "billet(s) payé(s) annulé(s) et remboursé(s), attentes de paiement libérées.",
+        )
+    elif nouveau in (Traversee.Statut.RETARDEE, Traversee.Statut.PARTIE):
+        from .notifications import envoyer_traversee_modification_email
+        libelle = traversee.get_statut_display()
+        for reservation in traversee.reservations.filter(statut=Reservation.Statut.CONFIRME):
+            envoyer_traversee_modification_email(reservation, libelle)
+        messages.success(request, f"Traversée passée « {libelle} » : les passagers confirmés ont été prévenus par e-mail.")
+    else:
+        messages.success(request, f"Traversée repassée « {traversee.get_statut_display()} ».")
+    return redirect('admin_trips')
+
+
+@admin_required
+def admin_trip_delete(request, pk):
+    """Suppression logique refusée si la traversée a des réservations (on préfère
+    l'annuler proprement, ce qui garantit remboursements et préavis)."""
+    traversee = get_object_or_404(Traversee, pk=pk)
+    if traversee.reservations.exists():
+        messages.error(
+            request,
+            "Cette traversée a des réservations : annulez-la avec le bouton « Annuler » "
+            "plutôt que de la supprimer (les remboursements seront tracés).",
+        )
+        return redirect('admin_trips')
+    traversee.delete()
+    messages.success(request, "Traversée supprimée.")
+    return redirect('admin_trips')
+
+
+# ---------------------------------------------------------------------
+# Back-office — Manifeste par traversée
+# ---------------------------------------------------------------------
+
+@agent_required
+def admin_manifest(request, traversee_id):
+    """Liste d'embarquement : une ligne par place vendue, avec jauge et export CSV."""
+    traversee = get_object_or_404(
+        Traversee.objects.select_related('route', 'bateau', 'route__port_depart', 'route__port_arrivee'),
+        pk=traversee_id
+    )
+    reservations = traversee.reservations.select_related('passager').order_by('statut', 'nom_passager')
+    embarquements = {e.reservation_id: e for e in Embarquement.objects.filter(traversee=traversee)}
+
+    if request.GET.get('export') == 'csv':
+        response = HttpResponse(content_type='text/csv; charset=utf-8')
+        response['Content-Disposition'] = f'attachment; filename="manifeste_{traversee.id}.csv"'
+        writer = csv.writer(response)
+        writer.writerow(['N°', 'Code', 'Passager', 'Téléphone', 'Statut', 'Embarqué le', 'Validé par'])
+        numero = 0
+        for r in reservations:
+            emb = embarquements.get(r.id)
+            for _ in range(r.nb_places):
+                numero += 1
+                writer.writerow([
+                    numero, r.code, r.nom_passager, r.telephone, r.get_statut_display(),
+                    emb.date_embarquement.strftime('%d/%m/%Y %H:%M') if emb else '',
+                    emb.valide_par_id if emb else '',
+                ])
+        return response
+
+    manifeste = []
+    for r in reservations:
+        emb = embarquements.get(r.id)
+        for i in range(r.nb_places):
+            manifeste.append({
+                'num': len(manifeste) + 1,
+                'reservation': r,
+                'place': i + 1,
+                'embarque': bool(emb),
+            })
+
+    return render(request, 'reservations/admin_manifest.html', {
+        'traversee': traversee,
+        'manifeste': manifeste,
+        'reservations': reservations,
+        'nb_billets': len(manifeste),
+        'nb_embarques': sum(1 for m in manifeste if m['embarque']),
+        'taux_chargement': traversee.taux_remplissage(),
+    })
+
+
+# ---------------------------------------------------------------------
+# Back-office — Contrôle d'embarquement (scan du QR / code billet)
+# ---------------------------------------------------------------------
+
+def _extraire_code(entree):
+    """Extrait le code billet depuis un scan de QR :
+
+    - contenu signé « CODE:SIGNATURE » (QR officiel) : la signature est
+      vérifiée → anti-fraude, un QR inventé est rejeté ;
+    - URL d'un billet (https://…/billet/CODE) : le code est extrait ;
+    - code seul saisi au clavier : retourné tel quel.
+
+    Renvoie (code, ok_signature). ok_signature vaut False uniquement quand
+    une signature était présente mais invalide (billet falsifié).
+    """
+    entree = (entree or '').strip()
+    if not entree:
+        return '', True
+
+    if entree.lower().startswith('http'):
+        dernier = entree.rstrip('/').split('/')[-1]
+        if dernier:
+            return dernier, True
+        return '', True
+
+    if ':' in entree:
+        code, _, signature = entree.partition(':')
+        return code.strip(), verifier_signature(code, signature)
+
+    return entree, True
+
+
+@agent_required
+def embarquement_scanner(request):
+    """Valide un billet au port : le QR (ou le code) est scanné, le billet
+    passe au statut EMBARQUÉ et un enregistrement d'embarquement est tracé.
+
+    Le téléphone dédié lit chaque billet, la vérification se fait toujours
+    contre la base de données (code + signature HMAC), et la fiche renvoyée
+    contient tous les détails de la réservation pour éliminer la fraude.
+    """
+    resultat = None
+    code = (request.POST.get('code') or request.GET.get('code') or '').strip()
+
+    if request.method == 'POST' and code:
+        code, signature_ok = _extraire_code(code)
+
+        if not signature_ok:
+            resultat = {'ok': False, 'code': code,
+                        'message': 'QR falsifié : la signature du billet est invalide. Vérifiez le billet du passager.'}
+        elif not code:
+            resultat = {'ok': False, 'message': 'Le QR scanné est vide ou illisible.'}
+        else:
+            reservation = Reservation.objects.select_related(
+                'traversee', 'traversee__route', 'traversee__bateau',
+                'traversee__route__port_depart', 'traversee__route__port_arrivee',
+                'embarquement', 'embarquement__valide_par',
+            ).filter(code__iexact=code).first()
+
+            if not reservation:
+                resultat = {'ok': False, 'code': code,
+                            'message': f"Aucun billet trouvé pour le code « {code} » : billet inconnu en base."}
+            elif reservation.statut not in (Reservation.Statut.CONFIRME, Reservation.Statut.EMBARQUE):
+                resultat = {
+                    'ok': False, 'reservation': reservation,
+                    'message': f"Billet {reservation.code} en statut « {reservation.get_statut_display()} » : non embarquable.",
+                }
+            elif Embarquement.objects.filter(reservation=reservation).exists():
+                deja = Embarquement.objects.get(reservation=reservation)
+                quand = timezone.localtime(deja.date_embarquement)
+                resultat = {
+                    'ok': False, 'deja_embarque': True, 'reservation': reservation,
+                    'message': (
+                        f"Billet déjà utilisé : embarqué le {quand:%d/%m/%Y à %H:%M:%S} "
+                        f"par {deja.valide_par or 'un agent'}. Présentation frauduleuse possible."
+                    ),
+                }
+            else:
+                reservation.statut = Reservation.Statut.EMBARQUE
+                reservation.save(update_fields=['statut'])
+                embarquement = Embarquement.objects.create(
+                    reservation=reservation,
+                    traversee=reservation.traversee,
+                    valide_par=request.user,
+                )
+                # Programme fidélité : tous les 10 voyages, un billet gratuit
+                # est attribué automatiquement (e-mail + notification admin).
+                from .fidelite import attribuer_recompense
+                recompense = attribuer_recompense(reservation.telephone)
+                resultat = {
+                    'ok': True, 'reservation': reservation, 'embarquement': embarquement,
+                    'recompense': recompense,
+                    'message': f"Embarquement validé pour {reservation.nom_passager}.",
+                }
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.POST.get('ajax'):
+        # Appel depuis le scanner mobile : on renvoie uniquement la fiche.
+        return render(request, 'reservations/_scan_result.html', {'resultat': resultat})
+
+    embarquements_du_jour = Embarquement.objects.select_related(
+        'reservation', 'reservation__traversee', 'valide_par',
+        'reservation__traversee__route__port_depart', 'reservation__traversee__route__port_arrivee',
+    ).filter(date_embarquement__date=timezone.localdate()).order_by('-date_embarquement')[:15]
+
+    traversees_du_jour = Traversee.objects.select_related('route', 'bateau').filter(
+        date=timezone.localdate()
+    ).order_by('heure')
+
+    return render(request, 'reservations/admin_embarquement.html', {
+        'resultat': resultat,
+        'code': code,
+        'aujourdhui_embarquements': embarquements_du_jour,
+        'traversees_du_jour': traversees_du_jour,
+    })

@@ -15,6 +15,7 @@
 <div class="flex gap-1 bg-white rounded-full p-1 w-fit mb-6 shadow-soft border border-navy/5 overflow-x-auto no-print">
   <a href="{% url 'admin_comptoir' %}" class="tab-btn {% if active == 'comptoir' %}active{% endif %} px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap">Comptoir</a>
   <a href="{% url 'admin_bookings' %}" class="tab-btn {% if active == 'bookings' %}active{% endif %} px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap">Réservations</a>
+  <a href="{% url 'admin_embarquement' %}" class="tab-btn {% if active == 'embarquement' %}active{% endif %} px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap">Embarquement</a>
   {% if is_admin %}
     <a href="{% url 'admin_dashboard' %}" class="tab-btn {% if active == 'stats' %}active{% endif %} px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap">Statistiques</a>
     <a href="{% url 'admin_routes' %}" class="tab-btn {% if active == 'routes' %}active{% endif %} px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap">Lignes</a>

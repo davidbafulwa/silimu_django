@@ -31,7 +31,9 @@ class TraverseeViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [AllowAny]
 
     def get_queryset(self):
-        qs = Traversee.objects.select_related('route', 'bateau').filter(bateau__en_service=True)
+        qs = Traversee.objects.select_related('route', 'bateau').filter(
+            bateau__en_service=True, statut=Traversee.Statut.PROGRAMMEE
+        )
         params = self.request.query_params
         if params.get('route'):
             qs = qs.filter(route_id=params['route'])

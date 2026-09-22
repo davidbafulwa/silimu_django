@@ -7,15 +7,20 @@
     <div class="text-center mb-8 reveal">
       <div class="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl
         {% if reservation.statut == 'CONFIRME' %}bg-emerald-50
+        {% elif reservation.statut == 'EMBARQUE' %}bg-teal-50
         {% elif reservation.statut == 'EN_ATTENTE' %}bg-amber-50
         {% else %}bg-red-50{% endif %}">
         {% if reservation.statut == 'CONFIRME' %}✅
+        {% elif reservation.statut == 'EMBARQUE' %}🚢
         {% elif reservation.statut == 'EN_ATTENTE' %}⏳
         {% else %}❌{% endif %}
       </div>
       {% if reservation.statut == 'CONFIRME' %}
         <h1 class="font-display text-3xl font-bold text-navy">Bon voyage sur le lac !</h1>
         <p class="text-ink/60 mt-2 text-sm">Conservez le code ci-dessous, il vous sera demandé à l'embarquement.</p>
+      {% elif reservation.statut == 'EMBARQUE' %}
+        <h1 class="font-display text-3xl font-bold text-navy">Vous êtes embarqué(e) !</h1>
+        <p class="text-ink/60 mt-2 text-sm">Votre billet a été validé au port. Bon voyage !</p>
       {% elif reservation.statut == 'EN_ATTENTE' %}
         <h1 class="font-display text-3xl font-bold text-navy">Paiement en cours de vérification</h1>
         <p class="text-ink/60 mt-2 text-sm">Si vous avez déjà payé, actualisez cette page dans quelques instants.</p>

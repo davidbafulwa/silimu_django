@@ -1,10 +1,34 @@
 import base64
+import hashlib
+import hmac
 from io import BytesIO
 
 import qrcode
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
+
+
+def _qr_secret():
+    return settings.SILIMU_QR_SECRET.encode("utf-8")
+
+
+def signer_code(code):
+    """Signature HMAC courte du code billet, intégrée au QR pour détecter les
+    billets inventés ou falsifiés avant même la consultation de la base."""
+    return hmac.new(_qr_secret(), str(code).encode("utf-8"), hashlib.sha256).hexdigest()[:10]
+
+
+def verifier_signature(code, signature):
+    if not signature:
+        return False
+    return hmac.compare_digest(signer_code(code), signature.strip())
+
+
+def payload_qr(code):
+    """Contenu du QR : code billet + signature. Format « CODE:SIGNATURE »."""
+    return f"{code}:{signer_code(code)}"
+
 
 
 def qr_code_png(data):
@@ -44,7 +68,7 @@ def envoyer_billet_email(reservation):
         message.attach_alternative(html, "text/html")
         message.attach(
             f"billet-{reservation.code}.png",
-            qr_code_png(reservation.code),
+            qr_code_png(payload_qr(reservation.code)),
             "image/png",
         )
         message.send(fail_silently=False)
@@ -79,6 +103,29 @@ def envoyer_annulation_email(reservation):
         return False
 
 
+def envoyer_recompense_email(recompense):
+    """Envoie automatiquement l'e-mail « billet gratuit fidélité » au dernier
+    e-mail utilisé par le passager. Silencieux en cas d'adresse manquante ou
+    d'échec d'envoi (la notification back-office reste)."""
+    if not recompense.email:
+        return False
+
+    sujet = f"🎁 Félicitations ! Vous gagnez un billet gratuit SILIMU ({recompense.code})"
+    contexte = {"recompense": recompense}
+    texte = render_to_string("reservations/email/recompense.txt", contexte)
+    html = render_to_string("reservations/email/recompense.html", contexte)
+
+    try:
+        message = EmailMultiAlternatives(
+            sujet, texte, settings.DEFAULT_FROM_EMAIL, [recompense.email]
+        )
+        message.attach_alternative(html, "text/html")
+        message.send(fail_silently=False)
+        return True
+    except Exception:
+        return False
+
+
 def envoyer_rappel_email(reservation):
     """Envoie un e-mail de rappel avant le départ (une seule fois par réservation)."""
     if not reservation.email or reservation.rappel_envoye:
@@ -97,6 +144,31 @@ def envoyer_rappel_email(reservation):
         message.send(fail_silently=False)
         reservation.rappel_envoye = True
         reservation.save(update_fields=['rappel_envoye'])
+        return True
+    except Exception:
+        return False
+
+
+def envoyer_traversee_modification_email(reservation, libelle_statut):
+    """
+    Préviens un passager confirmé d'un changement de statut de sa traversée
+    (retardée, partie, ...). Les annulations utilisent envoyer_annulation_email
+    car elles déclenchent en plus un remboursement.
+    """
+    if not reservation.email or reservation.statut != 'CONFIRME':
+        return False
+
+    sujet = f"[SILIMU] Votre traversée est {libelle_statut.lower()} — {reservation.code}"
+    contexte = {"reservation": reservation, "libelle_statut": libelle_statut}
+    texte = render_to_string("reservations/email/traversee_modifiee.txt", contexte)
+    html = render_to_string("reservations/email/traversee_modifiee.html", contexte)
+
+    try:
+        message = EmailMultiAlternatives(
+            sujet, texte, settings.DEFAULT_FROM_EMAIL, [reservation.email]
+        )
+        message.attach_alternative(html, "text/html")
+        message.send(fail_silently=False)
         return True
     except Exception:
         return False

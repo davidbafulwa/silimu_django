@@ -26,6 +26,9 @@ urlpatterns = [
     # Back-office — comptoir (agents + admins)
     path('admin-silimu/comptoir/', views.admin_comptoir, name='admin_comptoir'),
 
+    # Back-office — contrôle d'embarquement (agents + admins)
+    path('admin-silimu/embarquement/', views.embarquement_scanner, name='admin_embarquement'),
+
     # Back-office — statistiques (admins)
     path('admin-silimu/', views.admin_dashboard, name='admin_dashboard'),
 
@@ -40,13 +43,16 @@ urlpatterns = [
 
     # Back-office — traversées (admins)
     path('admin-silimu/traversees/', views.admin_trips, name='admin_trips'),
+    path('admin-silimu/traversees/<int:pk>/statut/', views.admin_trip_statut, name='admin_trip_statut'),
     path('admin-silimu/traversees/<int:pk>/supprimer/', views.admin_trip_delete, name='admin_trip_delete'),
+
+    # Back-office — manifeste par traversée (agents + admins)
+    path('admin-silimu/traversees/<int:traversee_id>/manifeste/', views.admin_manifest, name='admin_manifest'),
 
     # Back-office — réservations (agents + admins)
     path('admin-silimu/reservations/', views.admin_bookings, name='admin_bookings'),
     path('admin-silimu/reservations/<int:pk>/encaisser/', views.admin_booking_confirm, name='admin_booking_confirm'),
     path('admin-silimu/reservations/<int:pk>/annuler/', views.admin_booking_cancel, name='admin_booking_cancel'),
-    path('admin-silimu/reservations/<int:pk>/encaisser/', views.admin_booking_confirm, name='admin_booking_confirm'),
 
     # Back-office — exports comptables (admins)
     path('admin-silimu/reservations/export/csv/', views.export_bookings_csv, name='export_bookings_csv'),

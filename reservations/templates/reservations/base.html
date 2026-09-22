@@ -127,10 +127,63 @@
     .reveal{opacity:1;transform:none;transition:none;}
     html{scroll-behavior:auto;}
   }
+  /* ─── Header sticky ────────────────────────────────────────── */
+  #site-header{transition:background .35s ease,box-shadow .35s ease,border-color .35s ease;}
+  #site-header.scrolled{background:rgba(246,242,234,.92);box-shadow:0 10px 32px -16px rgba(7,48,63,.35);
+                       border-color:rgba(7,48,63,.08);}
+
+  /* ─── Hero — fond plus vivant ──────────────────────────────── */
+  .hero-media{position:absolute;inset:0;}
+  .hero-media img{width:100%;height:100%;object-fit:cover;
+                  animation:kenburns 26s ease-in-out infinite alternate;}
+  @keyframes kenburns{from{transform:scale(1) translate(0,0);}to{transform:scale(1.14) translate(1.5%,-1.5%);}}
+  .hero-shine{position:absolute;inset:-40%;pointer-events:none;
+              background:
+                radial-gradient(600px 300px at 18% 20%,rgba(15,181,176,.28),transparent 60%),
+                radial-gradient(700px 340px at 82% 68%,rgba(244,117,51,.18),transparent 60%);}
+  .hero-drift{position:absolute;border-radius:9999px;background:rgba(255,255,255,.16);filter:blur(1px);
+              animation:drift 14s ease-in-out infinite;}
+  @keyframes drift{0%,100%{transform:translateY(0) translateX(0);opacity:.55;}
+                   50%{transform:translateY(-26px) translateX(14px);opacity:.9;}}
+  @media (prefers-reduced-motion: reduce){.hero-media img,.hero-drift,.hero-shine{animation:none;}}
 
   /* ─── Marquee annonces ──────────────────────────────────────── */
-  .marquee{display:flex;gap:3rem;white-space:nowrap;animation:marquee 28s linear infinite;}
+  .marquee{display:flex;gap:3.2rem;white-space:nowrap;min-width:max-content;
+           animation:marquee 38s linear infinite;}
+  .marquee:hover{animation-play-state:paused;}
   @keyframes marquee{to{transform:translateX(-50%);}}
+  .announce-msg{display:inline-flex;align-items:center;gap:.55rem;font-weight:550;letter-spacing:.01em;}
+  .announce-msg strong{color:#fff;font-weight:800;}
+  .announce-pill{display:inline-flex;align-items:center;gap:.45rem;padding:.25rem .8rem;border-radius:9999px;
+                 background:rgba(7,48,63,.88);border:1px solid rgba(255,255,255,.28);backdrop-filter:blur(6px);
+                 font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:800;letter-spacing:.14em;
+                 text-transform:uppercase;color:#ffffff;box-shadow:0 2px 12px rgba(0,0,0,.22);}
+  .announce-bar{background:linear-gradient(115deg,#f47533 0%,#e8622a 30%,#f8a53a 60%,#f47533 100%);
+                background-size:220% 220%;animation:gradShift 10s ease-in-out infinite;}
+  @keyframes gradShift{0%,100%{background-position:0% 50%;}50%{background-position:100% 50%;}}
+  @media (prefers-reduced-motion: reduce){.announce-bar{animation:none;}}
+  .announce-msg .dot{width:8px;height:8px;border-radius:50%;background:#fff;box-shadow:0 0 0 0 rgba(255,255,255,.6);
+                     animation:ping 1.6s cubic-bezier(0,0,.2,1) infinite;}
+  @keyframes ping{75%,100%{box-shadow:0 0 0 9px rgba(255,255,255,0);}}
+
+  /* ─── Footer du site ───────────────────────────────────────── */
+  .site-footer{background:linear-gradient(165deg,#0b2430 0%,#07303f 55%,#0b4a57 100%);
+               color:rgba(255,255,255,.66);position:relative;overflow:hidden;}
+  .site-footer::before{content:"";position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(1000px 340px at 15% -20%,rgba(15,181,176,.16),transparent 60%),
+               radial-gradient(800px 320px at 95% 120%,rgba(244,117,51,.10),transparent 60%);}
+  .site-footer a{transition:color .2s ease,padding-left .2s ease;}
+  .footer-title{position:relative;color:#fff;font-weight:700;letter-spacing:.22em;text-transform:uppercase;
+                font-family:'Sora',sans-serif;font-size:12px;padding-bottom:.65rem;margin-bottom:1.25rem;}
+  .footer-title::after{content:"";position:absolute;left:0;bottom:0;height:2px;width:2rem;border-radius:2px;
+                background:linear-gradient(90deg,var(--sunset),#f8af3c);}
+  .footer-link{display:inline-block;color:rgba(255,255,255,.66);}
+  .footer-link:hover{color:#fff;padding-left:4px;text-decoration:underline;text-decoration-color:var(--sunset);text-underline-offset:4px;text-decoration-thickness:1.5px;}
+  .footer-brand{filter:drop-shadow(0 4px 14px rgba(15,181,176,.35));}
+  .footer-chip{display:inline-flex;align-items:center;gap:.4rem;padding:.32rem .7rem;border-radius:8px;
+               font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.02em;}
+  .footer-chip[data-bg]{color:#fff;}
+  @media print{.site-footer,.no-print{display:none !important;}}
 
   @media print{
     body{background:#fff !important;}
@@ -143,21 +196,21 @@
 <body class="min-h-screen flex flex-col">
 
 {% block announce %}
-<div class="no-print overflow-hidden bg-gradient-to-r from-deep via-navy to-teal text-white text-[13px] py-2">
+<div class="no-print overflow-hidden announce-bar text-white text-[13px] py-2.5 shadow-inner">
   <div class="marquee items-center" aria-hidden="true">
-    <span class="font-semibold">🚢 Billets en ligne : Bukavu ⇄ Goma, Idjwi, Minova, Uvira, Kalemie…</span>
-    <span>📱 Paiement Mobile Money — Orange, Airtel, M-Pesa — ou carte bancaire</span>
-    <span>🎫 E-billet avec QR code, imprimable, envoyé par e-mail</span>
-    <span>🌋 Sud-Kivu &amp; Nord-Kivu : traversées chaque jour dès 7h00</span>
-    <span class="font-semibold">🚢 Billets en ligne : Bukavu ⇄ Goma, Idjwi, Minova, Uvira, Kalemie…</span>
-    <span>📱 Paiement Mobile Money — Orange, Airtel, M-Pesa — ou carte bancaire</span>
-    <span>🎫 E-billet avec QR code, imprimable, envoyé par e-mail</span>
-    <span>🌋 Sud-Kivu &amp; Nord-Kivu : traversées chaque jour dès 7h00</span>
+    <span class="announce-msg"><span class="announce-pill"><span class="dot"></span> Réservation en ligne</span> Réservez votre billet — <strong>Bukavu ⇄ Goma, Idjwi, Minova, Uvira, Kalemie</strong></span>
+    <span class="announce-msg">📱 <strong>Paiement Mobile Money</strong>&nbsp;: Orange Money · Airtel Money · M-Pesa · Carte</span>
+    <span class="announce-msg">🎫 <strong>E-billet avec QR code</strong>&nbsp;— imprimable et envoyé par e-mail</span>
+    <span class="announce-msg">🌋 Voyagez chaque jour <strong>dès 7h00</strong> sur le lac Kivu &amp; le Tanganyika</span>
+    <span class="announce-msg"><span class="announce-pill"><span class="dot"></span> Réservation en ligne</span> Réservez votre billet — <strong>Bukavu ⇄ Goma, Idjwi, Minova, Uvira, Kalemie</strong></span>
+    <span class="announce-msg">📱 <strong>Paiement Mobile Money</strong>&nbsp;: Orange Money · Airtel Money · M-Pesa · Carte</span>
+    <span class="announce-msg">🎫 <strong>E-billet avec QR code</strong>&nbsp;— imprimable et envoyé par e-mail</span>
+    <span class="announce-msg">🌋 Voyagez chaque jour <strong>dès 7h00</strong> sur le lac Kivu &amp; le Tanganyika</span>
   </div>
 </div>
 {% endblock %}
 
-<header class="no-print sticky top-0 z-40 glass border-b border-white/50 shadow-soft">
+<header id="site-header" class="no-print sticky top-0 z-40 glass border-b border-white/50 shadow-soft">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-4 h-16 md:h-[72px]">
     <a href="{% url 'home' %}" class="flex items-center gap-2.5 shrink-0">
       <svg viewBox="0 0 64 64" class="w-10 h-10 md:w-11 md:h-11 drop-shadow" aria-hidden="true">
@@ -222,11 +275,12 @@
   {% block content %}{% endblock %}
 </main>
 
-<footer class="no-print mt-auto bg-deep text-white/70">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 py-14 grid grid-cols-2 md:grid-cols-4 gap-10">
+<footer class="no-print mt-auto site-footer">
+  <div class="relative max-w-7xl mx-auto px-4 sm:px-6 py-14 grid grid-cols-2 md:grid-cols-4 gap-10">
+
     <div class="col-span-2 md:col-span-1">
       <div class="flex items-center gap-2.5 mb-4">
-        <svg viewBox="0 0 64 64" class="w-9 h-9" aria-hidden="true">
+        <svg viewBox="0 0 64 64" class="w-9 h-9 footer-brand" aria-hidden="true">
           <rect width="64" height="64" rx="16" fill="#07303f"/>
           <path d="M8 40c6-8 12-8 16-2s12 6 18 0 10-6 14-2v10H8z" fill="#0fb5b0"/>
           <path d="M8 30c6-8 12-8 16-2s12 6 18 0 10-6 14-2" fill="none" stroke="#f47533" stroke-width="4" stroke-linecap="round"/>
@@ -234,25 +288,25 @@
         <span class="font-display font-extrabold text-xl text-white">SILIMU</span>
       </div>
       <p class="text-sm leading-relaxed">La réservation de billets de bateau en ligne pour le lac Kivu et le lac Tanganyika. Simple, rapide et sécurisée — du Sud-Kivu au Nord-Kivu.</p>
-      <div class="mt-5 flex items-center gap-2 text-[11px] font-mono">
-        <span class="px-2 py-1 rounded-md bg-white/10 text-white">&lt;/&gt;</span>
+      <div class="mt-6 flex flex-wrap items-center gap-2 text-[11px] font-mono">
+        <span class="px-2 py-1 rounded-md bg-white/10 text-white/90">&lt;/&gt;</span>
         <span>Site développé par <a href="https://davidbafulwa.github.io/portfolio/" target="_blank" rel="noopener" class="text-white font-semibold underline decoration-sunset decoration-2 underline-offset-4 hover:text-sunset transition">Daniel Bafulwa ↗</a></span>
       </div>
     </div>
 
     <div>
-      <h4 class="text-white font-display font-semibold mb-4 text-sm uppercase tracking-widest">Naviguer</h4>
+      <h4 class="footer-title">Naviguer</h4>
       <ul class="space-y-2.5 text-sm">
-        <li><a class="hover:text-white transition" href="{% url 'home' %}">Rechercher un trajet</a></li>
-        <li><a class="hover:text-white transition" href="{% url 'mes_billets' %}">Retrouver un billet</a></li>
-        <li><a class="hover:text-white transition" href="{% url 'compte_inscription' %}">Créer un compte</a></li>
-        <li><a class="hover:text-white transition" href="{% url 'compte_connexion' %}">Mon espace passager</a></li>
-        <li><a class="hover:text-white transition" href="{% url 'admin_login' %}">Espace professionnel</a></li>
+        <li><a class="footer-link" href="{% url 'home' %}">Rechercher un trajet</a></li>
+        <li><a class="footer-link" href="{% url 'mes_billets' %}">Retrouver un billet</a></li>
+        <li><a class="footer-link" href="{% url 'compte_inscription' %}">Créer un compte</a></li>
+        <li><a class="footer-link" href="{% url 'compte_connexion' %}">Mon espace passager</a></li>
+        <li><a class="footer-link" href="{% url 'admin_login' %}">Espace professionnel</a></li>
       </ul>
     </div>
 
     <div>
-      <h4 class="text-white font-display font-semibold mb-4 text-sm uppercase tracking-widest">Destinations</h4>
+      <h4 class="footer-title">Destinations</h4>
       <ul class="space-y-2.5 text-sm">
         <li>Bukavu ⇄ Goma</li>
         <li>Bukavu ⇄ Idjwi</li>
@@ -263,25 +317,25 @@
     </div>
 
     <div>
-      <h4 class="text-white font-display font-semibold mb-4 text-sm uppercase tracking-widest">Contact</h4>
+      <h4 class="footer-title">Contact</h4>
       <ul class="space-y-3 text-sm">
         <li class="flex gap-3"><span>📍</span><span>Av. de la Paix, Quartier de l'Indépendance,<br><strong class="text-white">Bukavu</strong>, Sud-Kivu — RDC</span></li>
         <li class="flex gap-3"><span>📍</span><span>Port de Kituku,<br><strong class="text-white">Goma</strong>, Nord-Kivu — RDC</span></li>
-        <li class="flex gap-3"><span>📞</span><a href="tel:+243990000000" class="hover:text-white transition">+243 990 000 000</a></li>
-        <li class="flex gap-3"><span>✉️</span><a href="mailto:contact@silimu.cd" class="hover:text-white transition">contact@silimu.cd</a></li>
+        <li class="flex gap-3"><span>📞</span><a href="tel:+243990000000" class="footer-link">+243 990 000 000</a></li>
+        <li class="flex gap-3"><span>✉️</span><a href="mailto:contact@silimu.cd" class="footer-link">contact@silimu.cd</a></li>
       </ul>
     </div>
   </div>
 
-  <div class="border-t border-white/10">
+  <div class="relative border-t border-white/10">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
       <span>© {% now "Y" %} SILIMU — Établissement de transport lacustre. Tous droits réservés.</span>
       <div class="flex items-center gap-2">
         <span class="text-white/50 mr-1">Paiement accepté :</span>
-        <span class="px-2.5 py-1 rounded-lg bg-white/10 font-mono text-[10px] font-bold text-white">Orange Money</span>
-        <span class="px-2.5 py-1 rounded-lg bg-white/10 font-mono text-[10px] font-bold text-white">Airtel</span>
-        <span class="px-2.5 py-1 rounded-lg bg-white/10 font-mono text-[10px] font-bold text-white">M-Pesa</span>
-        <span class="px-2.5 py-1 rounded-lg bg-white/10 font-mono text-[10px] font-bold text-white">Carte</span>
+        <span class="footer-chip" data-bg style="background:#ff7900">Orange Money</span>
+        <span class="footer-chip" data-bg style="background:#d70000">Airtel Money</span>
+        <span class="footer-chip" data-bg style="background:#2bb34b">M-Pesa</span>
+        <span class="footer-chip" data-bg style="background:#1a1f36">Visa/Mastercard</span>
       </div>
     </div>
   </div>
@@ -308,6 +362,14 @@
       document.querySelectorAll('.reveal').forEach(function(el){ io.observe(el); });
     } else {
       document.querySelectorAll('.reveal').forEach(function(el){ el.classList.add('is-visible'); });
+    }
+    var header = document.getElementById('site-header');
+    if (header) {
+      function onHeaderScroll(){
+        header.classList.toggle('scrolled', window.scrollY > 24);
+      }
+      window.addEventListener('scroll', onHeaderScroll, {passive:true});
+      onHeaderScroll();
     }
   })();
 </script>

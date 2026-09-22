@@ -10,8 +10,7 @@ Pour activer les paiements réels, il faut :
 2. Récupérer APIKEY et SITE_ID dans le menu "Intégrations" du tableau de bord
 3. Renseigner les variables d'environnement CINETPAY_API_KEY et CINETPAY_SITE_ID
 4. S'assurer que le site est joignable en HTTPS depuis Internet pour que
-   CinetPay puisse appeler l'URL de notification (en local, utiliser ngrok
-   ou déployer le site — voir README.md)
+   CinetPay puisse appeler l'URL de notification.
 """
 import requests
 from django.conf import settings

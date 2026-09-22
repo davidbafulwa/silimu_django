@@ -1,0 +1,70 @@
+{% extends "reservations/base.html" %}
+{% load humanize %}
+{% block title %}Manifeste {{ traversee }} — SILIMU{% endblock %}
+{% block content %}
+<div class="pt-8">
+  {% include "reservations/_admin_nav.html" with active="trips" %}
+
+  <a href="{% url 'admin_trips' %}" class="text-sm text-teal font-semibold mb-4 inline-block hover:text-navy transition">&larr; Retour aux traversées</a>
+
+  <div class="card overflow-hidden mb-6">
+    <div class="bg-gradient-to-r from-navy to-deep text-white p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div>
+        <div class="kicker text-aqua text-[10px]">Manifeste d'embarquement</div>
+        <h2 class="font-display text-2xl font-bold mt-1">{{ traversee.route.port_depart }} → {{ traversee.route.port_arrivee }}</h2>
+        <p class="text-white/70 text-sm mt-1">
+          {{ traversee.date|date:"l d F Y" }} à {{ traversee.heure|time:"H:i" }} · {{ traversee.bateau.nom }}
+          · {% if traversee.statut == 'ANNULEE' %}<span class="text-red-300 font-semibold">Annulée</span>{% else %}{{ traversee.get_statut_display }}{% endif %}
+        </p>
+      </div>
+      <div class="flex gap-2">
+        <div class="bg-white/10 rounded-2xl px-5 py-3 text-center">
+          <div class="font-display text-2xl font-bold">{{ nb_billets }}</div>
+          <div class="text-[10px] uppercase tracking-widest text-white/60 font-mono">billets</div>
+        </div>
+        <div class="bg-emerald-400/15 rounded-2xl px-5 py-3 text-center border border-emerald-300/20">
+          <div class="font-display text-2xl font-bold text-emerald-300">{{ nb_embarques }}</div>
+          <div class="text-[10px] uppercase tracking-widest text-emerald-200/70 font-mono">embarqués</div>
+        </div>
+        <div class="bg-white/10 rounded-2xl px-5 py-3 text-center">
+          <div class="font-display text-2xl font-bold">{{ taux_chargement }}%</div>
+          <div class="text-[10px] uppercase tracking-widest text-white/60 font-mono">remplissage</div>
+        </div>
+      </div>
+    </div>
+    <div class="flex justify-end p-4 no-print">
+      <a href="{% url 'admin_manifest' traversee.id %}?export=csv" class="btn btn-outline px-4 py-2 text-xs">Exporter le manifeste (CSV)</a>
+    </div>
+  </div>
+
+  <div class="card overflow-hidden overflow-x-auto">
+    <table class="w-full text-sm min-w-[700px]">
+      <thead class="bg-navy text-white font-mono text-xs uppercase"><tr>
+        <th class="text-left px-4 py-3">N°</th><th class="text-left px-4 py-3">Code</th><th class="text-left px-4 py-3">Passager</th>
+        <th class="text-left px-4 py-3">Téléphone</th><th class="text-left px-4 py-3">Place</th><th class="text-left px-4 py-3">Statut</th><th class="text-left px-4 py-3">Embarqué</th>
+      </tr></thead>
+      <tbody class="divide-y divide-navy/5">
+        {% for m in manifeste %}
+        <tr class="board-row {% if m.embarque %}bg-emerald-50/50{% endif %}">
+          <td class="px-4 py-2.5 font-mono text-ink/50">{{ m.num }}</td>
+          <td class="px-4 py-2.5 font-mono text-navy">{{ m.reservation.code }}</td>
+          <td class="px-4 py-2.5 font-medium">{{ m.reservation.nom_passager }}</td>
+          <td class="px-4 py-2.5">{{ m.reservation.telephone }}</td>
+          <td class="px-4 py-2.5 font-mono">{{ m.place }}</td>
+          <td class="px-4 py-2.5">
+            {% if m.reservation.statut == 'CONFIRME' %}<span class="text-emerald-600 font-semibold">Confirmé</span>
+            {% elif m.reservation.statut == 'EMBARQUE' %}<span class="text-teal-600 font-semibold">Embarqué</span>
+            {% elif m.reservation.statut == 'EN_ATTENTE' %}<span class="text-amber-600 font-semibold">En attente</span>
+            {% elif m.reservation.statut == 'ANNULE' %}<span class="text-red-500 font-semibold">Annulé</span>
+            {% else %}<span class="text-red-500 font-semibold">Échec</span>{% endif %}
+          </td>
+          <td class="px-4 py-2.5">{% if m.embarque %}✅{% else %}—{% endif %}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="px-4 py-8 text-center text-ink/45">Aucun billet vendu sur cette traversée.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

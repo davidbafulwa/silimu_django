@@ -1,0 +1,102 @@
+{% load humanize %}
+<div id="scan-result">
+  {% if resultat %}
+    <div class="mt-5 rounded-2xl px-5 py-4 text-sm font-semibold border flex items-start gap-3
+      {% if resultat.ok %}bg-emerald-50 text-emerald-800 border-emerald-200
+      {% elif resultat.deja_embarque %}bg-amber-50 text-amber-800 border-amber-200
+      {% else %}bg-red-50 text-red-800 border-red-200{% endif %}">
+      <span class="text-xl leading-none mt-0.5">
+        {% if resultat.ok %}✅{% elif resultat.deja_embarque %}🔁{% else %}⛔{% endif %}
+      </span>
+      <span>{{ resultat.message }}</span>
+    </div>
+
+    {% if resultat.reservation %}
+    {% with r=resultat.reservation t=r.traversee %}
+    <div class="mt-4 card overflow-hidden">
+      <div class="bg-gradient-to-r from-navy to-deep text-white p-6">
+        <div class="flex justify-between items-start gap-3">
+          <div>
+            <div class="font-mono text-[10px] uppercase tracking-widest text-aqua">Billet</div>
+            <div class="font-mono font-bold text-xl mt-1 tracking-[0.25em]">{{ r.code }}</div>
+          </div>
+          <a href="{% url 'billet' r.code %}" target="_blank" class="text-[10px] font-mono uppercase tracking-widest bg-white/10 hover:bg-white/20 rounded-full px-3 py-1.5 whitespace-nowrap">Fiche publique ↗</a>
+        </div>
+        <div class="grid grid-cols-[1fr_auto] md:grid-cols-[1fr_auto] gap-2 items-center mt-5">
+          <div class="font-display text-2xl font-bold leading-tight">{{ r.nom_passager }}</div>
+          <span class="font-mono text-xs uppercase tracking-widest
+            {% if resultat.ok %}text-emerald-300
+            {% elif r.statut == 'EMBARQUE' %}text-aqua
+            {% elif r.statut == 'EN_ATTENTE' %}text-amber-300
+            {% else %}text-red-300{% endif %}">{{ r.get_statut_display }}</span>
+        </div>
+        <div class="flex flex-wrap gap-x-6 gap-y-1 text-white/75 text-sm mt-2">
+          {% if r.telephone %}<span>📞 {{ r.telephone }}</span>{% endif %}
+          {% if r.email %}<span class="truncate">✉️ {{ r.email }}</span>{% endif %}
+        </div>
+      </div>
+
+      <div class="p-5 bg-white">
+        <div class="kicker text-[10px] mb-2">Traversée</div>
+        <div class="flex items-center justify-between bg-mist rounded-2xl px-4 py-3">
+          <div class="text-center">
+            <div class="font-display font-bold text-lg text-navy">{{ t.route.port_depart }}</div>
+            <div class="font-mono text-[11px] text-ink/50">{{ t.heure|time:"H:i" }}</div>
+          </div>
+          <div class="flex-1 px-3 text-center text-sunset text-sm">⛵ —→</div>
+          <div class="text-center">
+            <div class="font-display font-bold text-lg text-navy">{{ t.route.port_arrivee }}</div>
+            <div class="font-mono text-[11px] text-ink/50">{{ t.date|date:"d/m/Y" }}</div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mt-4 text-sm">
+          <div class="rounded-xl border border-navy/5 p-3">
+            <div class="kicker text-[10px]">Bateau</div>
+            <div class="font-semibold text-navy mt-0.5 leading-snug">{{ t.bateau.nom }}</div>
+            <div class="text-[11px] text-ink/50">cap. {{ t.bateau.capacite }} · {{ t.bateau.get_type_bateau_display }}</div>
+          </div>
+          <div class="rounded-xl border border-navy/5 p-3">
+            <div class="kicker text-[10px]">Places</div>
+            <div class="font-semibold text-navy mt-0.5">{{ r.nb_places }}</div>
+            <div class="text-[11px] text-ink/50">{{ t.places_disponibles }} restantes</div>
+          </div>
+          <div class="rounded-xl border border-navy/5 p-3">
+            <div class="kicker text-[10px]">Total payé</div>
+            <div class="font-semibold text-navy mt-0.5 font-mono">{{ r.total|floatformat:0|intcomma }} FC</div>
+            <div class="text-[11px] text-ink/50">{{ r.get_mode_paiement_display }}</div>
+          </div>
+          <div class="rounded-xl border border-navy/5 p-3">
+            <div class="kicker text-[10px]">Durée / distance</div>
+            <div class="font-semibold text-navy mt-0.5">{{ t.route.duree_min }} min</div>
+            <div class="text-[11px] text-ink/50">{{ t.route.distance_km }} km</div>
+          </div>
+          <div class="rounded-xl border border-navy/5 p-3">
+            <div class="kicker text-[10px]">Traversée</div>
+            <div class="font-semibold text-navy mt-0.5">{{ t.get_statut_display }}</div>
+            <div class="text-[11px] text-ink/50">prix {{ t.prix|floatformat:0|intcomma }} FC</div>
+          </div>
+          <div class="rounded-xl border border-navy/5 p-3">
+            <div class="kicker text-[10px]">Réservé le</div>
+            <div class="font-semibold text-navy mt-0.5">{{ r.date_creation|date:"d/m/Y à H:i:s" }}</div>
+            <div class="text-[11px] text-ink/50">code {{ r.code }}{% if r.enregistre_par %} · par {{ r.enregistre_par }}{% endif %}</div>
+          </div>
+        </div>
+
+        {% if resultat.deja_embarque and r.embarquement %}
+          <div class="mt-4 bg-amber-50 border-2 border-amber-300 text-amber-900 text-sm rounded-xl px-4 py-3">
+            <div class="font-bold uppercase tracking-wide text-[11px] mb-1">⚠️ Alerte : billet déjà utilisé</div>
+            <div>Embarqué le <b>{{ r.embarquement.date_embarquement|date:"d/m/Y à H:i:s" }}</b>{% if r.embarquement.valide_par %} par <b>{{ r.embarquement.valide_par }}</b>{% endif %}.</div>
+            <div class="text-[12px] text-amber-800/80 mt-1">Un billet ne sert qu'une seule fois : vérifiez l'identité du porteur.</div>
+          </div>
+        {% elif resultat.ok %}
+          <div class="mt-4 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm rounded-xl px-4 py-3 flex items-center gap-2">
+            ✅ Embarquement enregistré le {{ resultat.embarquement.date_embarquement|date:"d/m/Y à H:i:s" }}{% if resultat.embarquement.valide_par %} par {{ resultat.embarquement.valide_par }}{% endif %} : ce billet ne pourra plus être présenté une seconde fois.
+          </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endwith %}
+    {% endif %}
+  {% endif %}
+</div>

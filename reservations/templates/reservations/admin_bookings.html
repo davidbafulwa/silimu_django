@@ -33,7 +33,15 @@
           <td class="px-4 py-3">{{ r.nb_places }}</td>
           <td class="px-4 py-3 font-mono font-semibold text-navy">{{ r.total|floatformat:0|intcomma }} FC</td>
           <td class="px-4 py-3">{{ r.get_mode_paiement_display }}{% if r.enregistre_par %}<div class="text-[11px] text-ink/45">par {{ r.enregistre_par.username }}</div>{% endif %}</td>
-          <td class="px-4 py-3 {% if r.statut == 'CONFIRME' %}text-emerald-600{% elif r.statut == 'EN_ATTENTE' %}text-amber-600{% else %}text-red-500{% endif %} font-semibold">{{ r.get_statut_display }}</td>
+          <td class="px-4 py-3 {% if r.statut == 'CONFIRME' %}text-emerald-600{% elif r.statut == 'EMBARQUE' %}text-teal-600{% elif r.statut == 'EN_ATTENTE' %}text-amber-600{% else %}text-red-500{% endif %} font-semibold">
+            {{ r.get_statut_display }}
+            {% if r.statut == 'EN_ATTENTE' %}
+              <div class="text-[11px] text-ink/45 font-normal">paiement avant {{ r.expire_le|date:"d/m H:i" }}</div>
+            {% endif %}
+            {% if r.remboursements.all %}
+              <div class="text-[11px] text-ink/45 font-normal">↩ remboursé {{ r.remboursements.first.montant|floatformat:0|intcomma }} FC</div>
+            {% endif %}
+          </td>
           <td class="px-4 py-3 text-right">
             {% if r.statut == 'EN_ATTENTE' %}
               <form method="post" action="{% url 'admin_booking_confirm' r.id %}" class="inline">

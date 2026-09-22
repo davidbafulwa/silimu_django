@@ -1,0 +1,221 @@
+{% extends "reservations/base.html" %}
+{% load humanize %}
+{% block title %}Contrôle d'embarquement — SILIMU{% endblock %}
+{% block content %}
+<div class="pt-8 pb-16">
+  {% include "reservations/_admin_nav.html" with active="embarquement" %}
+
+  <div class="grid lg:grid-cols-[minmax(0,520px)_1fr] gap-6 items-start">
+    <!-- ══ Scanner mobile (téléphone dédié) ══ -->
+    <div class="card p-5 md:p-6">
+      <div class="flex items-center justify-between mb-3">
+        <div class="kicker">Scanner un billet</div>
+        <span class="font-mono text-[10px] uppercase tracking-widest text-teal bg-teal/10 rounded-full px-3 py-1">vérifié en base</span>
+      </div>
+      <p class="text-sm text-ink/60 mb-4">Pointez la caméra vers le QR code du billet : la base de données le vérifie instantanément et affiche tous les détails.</p>
+
+      <div id="alerte-insecure" class="hidden mb-4 rounded-2xl px-4 py-3 text-sm border bg-amber-50 text-amber-900 border-amber-200"></div>
+
+      <div class="relative rounded-2xl overflow-hidden bg-navy/90 aspect-video mb-4">
+        <video id="qr-video" playsinline muted class="absolute inset-0 w-full h-full object-cover"></video>
+        <canvas id="qr-canvas" class="hidden"></canvas>
+        <div id="scan-frame" class="absolute inset-0 pointer-events-none">
+          <div class="absolute left-0 right-0 top-1/2 h-0.5 bg-aqua/70 shadow-[0_0_12px_#8fd3de]" style="animation: scanline 2.4s ease-in-out infinite;"></div>
+          <div class="absolute inset-8 border-2 border-aqua/60 rounded-2xl" style="box-shadow:0 0 0 9999px rgba(11,61,76,.35);"></div>
+        </div>
+        <div id="camoff" class="absolute inset-0 flex flex-col items-center justify-center gap-2 text-white/80 text-sm text-center px-6">
+          <span class="text-3xl">📷</span>
+          <span>Caméra éteinte.<br>Activez-la pour scanner les QR.</span>
+        </div>
+      </div>
+      <div class="flex gap-2 mb-4">
+        <button id="btn-camera" class="btn btn-dark flex-1 text-sm py-3 no-print">Allumer la caméra</button>
+      </div>
+
+      <div class="flex items-center gap-3 text-ink/35 text-xs mb-3 no-print">
+        <span class="flex-1 h-px bg-navy/10"></span> ou saisir le code <span class="flex-1 h-px bg-navy/10"></span>
+      </div>
+
+      <form id="form-code" method="post" class="admin-form flex gap-2">
+        {% csrf_token %}
+        <input type="text" name="code" id="input-code" value="{{ code }}" placeholder="SLM-XXXX-0000" class="flex-1 font-mono" autocomplete="off">
+        <button type="submit" class="btn btn-primary px-5 py-2.5 text-sm whitespace-nowrap">Vérifier</button>
+      </form>
+
+      {% include "reservations/_scan_result.html" %}
+    </div>
+
+    <!-- ══ Côté port ══ -->
+    <div class="space-y-6">
+      <div class="card overflow-hidden">
+        <div class="p-5 pb-2">
+          <div class="kicker">Traversées du jour</div>
+          <p class="text-xs text-ink/50 mt-1 font-mono">Billets embarqués / vendus par traversée</p>
+        </div>
+        <div class="divide-y divide-navy/5">
+          {% for t in traversees_du_jour %}
+            <div class="board-row flex items-center justify-between py-3 px-5">
+              <div>
+                <div class="font-semibold text-navy text-sm">{{ t.route.port_depart }} → {{ t.route.port_arrivee }}</div>
+                <div class="text-xs text-ink/55 mt-0.5">{{ t.heure|time:"H:i" }} · {{ t.bateau.nom }}</div>
+              </div>
+              <div class="text-right">
+                <div class="font-mono font-bold text-navy">{{ t.embarquements.count }}<span class="text-ink/40 font-medium">/{{ t.places_reservees }}</span></div>
+                <div class="text-[11px] text-ink/45 font-mono">embarqués</div>
+              </div>
+            </div>
+          {% empty %}
+            <p class="text-ink/50 px-5 py-4 text-sm">Aucune traversée aujourd'hui.</p>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="card overflow-hidden">
+        <div class="p-5 pb-2">
+          <div class="kicker">Derniers embarquements du jour</div>
+        </div>
+        <div class="divide-y divide-navy/5">
+          {% for e in aujourdhui_embarquements %}
+            <div class="board-row flex items-center justify-between py-2.5 px-5">
+              <div>
+                <div class="font-medium text-sm">{{ e.reservation.nom_passager }}</div>
+                <div class="font-mono text-[11px] text-navy/60">{{ e.reservation.code }} · {{ e.reservation.traversee.route.port_depart }} → {{ e.reservation.traversee.route.port_arrivee }}</div>
+              </div>
+              <div class="text-right">
+                <div class="font-mono text-xs text-teal font-bold">🚢 {{ e.date_embarquement|date:"H:i:s" }}</div>
+                <div class="text-[11px] text-ink/45">{{ e.valide_par.username|default:"—" }}</div>
+              </div>
+            </div>
+          {% empty %}
+            <p class="text-ink/50 px-5 py-4 text-sm">Aucun embarquement validé aujourd'hui.</p>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/jsQR.js"></script>
+<script>
+(function () {
+  const video = document.getElementById('qr-video');
+  const canvas = document.getElementById('qr-canvas');
+  const btn = document.getElementById('btn-camera');
+  const camoff = document.getElementById('camoff');
+  const form = document.getElementById('form-code');
+  const input = document.getElementById('input-code');
+  const CSRF = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('csrftoken='));
+
+  let stream = null, ticking = false, pausing = false;
+
+  function resultBox() { return document.getElementById('scan-result'); }
+
+  function showError(msg) {
+    const box = resultBox();
+    const html = '<div class="mt-5 rounded-2xl px-5 py-4 text-sm font-semibold border bg-red-50 text-red-800 border-red-200">⛔ ' + msg + '</div>';
+    if (box) box.innerHTML = html; else camoff.insertAdjacentHTML('afterend', html);
+  }
+
+  (function verifierContexte() {
+    const alerte = document.getElementById('alerte-insecure');
+    if (!alerte || window.isSecureContext) return;
+    alerte.classList.remove('hidden');
+    alerte.innerHTML = '📷 La caméra est bloquée car cette page est ouverte en <b>HTTP</b> (non sécurisé).<br>' +
+      'Solution 1 (sans certificat) : dans Chrome, ouvrez <b>chrome://flags</b>, cherchez <b>« Insecure origins treated as secure »</b>, activez-la, ajoutez <b>' + location.origin + '</b>, puis relancez Chrome.<br>' +
+      'Solution 2 : <a class="underline" href="https://' + location.hostname + ':8443' + location.pathname + '">ouvrir la version HTTPS</a> (certificat à installer).';
+  })();
+
+  function beep(ok) {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value = ok ? 1046 : 220;
+      o.type = ok ? 'sine' : 'square';
+      g.gain.setValueAtTime(0.25, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.28);
+      o.start(); o.stop(ctx.currentTime + 0.3);
+    } catch (e) {}
+  }
+
+  function sendScanned(rawCode) {
+    if (pausing) return;
+    pausing = true;
+    const body = new URLSearchParams();
+    body.append('code', rawCode);
+    body.append('ajax', '1');
+    if (CSRF) body.append('csrfmiddlewaretoken', CSRF.split('=').slice(1).join('='));
+    fetch(window.location.href, {
+      method: 'POST', headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRFToken': CSRF ? CSRF.split('=').slice(1).join('=') : '',
+      }, body: body, credentials: 'same-origin',
+    })
+      .then(r => r.text())
+      .then(html => {
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const box = resultBox();
+        if (box) box.outerHTML = '<div id="scan-result">' + html.replace(/^<div id="scan-result">|<\/div>\s*$/g, '') + '</div>';
+        beep(!!doc.querySelector('.bg-emerald-50'));
+        setTimeout(() => { pausing = false; }, 2200);
+      })
+      .catch(() => { pausing = false; });
+  }
+
+  function tick() {
+    if (!stream) return;
+    if (!video.readyState || video.videoWidth === 0) { requestAnimationFrame(tick); return; }
+    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+    if (code && code.data && !pausing) {
+      input.value = code.data;
+      sendScanned(code.data);
+    }
+    if (!pausing) requestAnimationFrame(tick);
+  }
+
+  btn.addEventListener('click', async () => {
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop()); stream = null;
+      video.srcObject = null; camoff.style.display = 'flex';
+      btn.textContent = 'Allumer la caméra'; ticking = false; return;
+    }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showError("La caméra nécessite une page HTTPS sécurisée. Vérifiez que le certificat est bien installé et que l'adresse commence par https://");
+      return;
+    }
+    if (typeof jsQR === 'undefined') {
+      showError("La librairie de lecture du QR n'a pas pu se charger. Rechargez la page (le fichier /static/js/jsQR.js est peut-être manquant).");
+      return;
+    }
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false,
+      });
+      video.srcObject = stream; camoff.style.display = 'none';
+      btn.textContent = 'Éteindre la caméra';
+      await video.play();
+      ticking = true; requestAnimationFrame(tick);
+    } catch (e) {
+      const m = e && e.name === 'NotAllowedError'
+        ? "Autorisation caméra refusée. Ouvrez les réglages du site dans Chrome et autorisez la caméra."
+        : 'Impossible de démarrer la caméra : ' + (e && e.message ? e.message : e);
+      showError(m);
+      camoff.style.display = 'flex'; btn.textContent = 'Allumer la caméra';
+    }
+  });
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!input.value.trim()) return;
+    sendScanned(input.value.trim());
+  });
+})();
+</script>
+<style>
+@keyframes scanline { 0%,100% { top: 18%; } 50% { top: 80%; } }
+</style>
+{% endblock %}

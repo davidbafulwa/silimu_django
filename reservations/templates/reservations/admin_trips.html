@@ -20,25 +20,58 @@
   </div>
 
   <div class="card overflow-hidden overflow-x-auto">
-    <table class="w-full text-sm min-w-[700px]">
+    <table class="w-full text-sm min-w-[720px]">
       <thead class="bg-navy text-white font-mono text-xs uppercase"><tr>
         <th class="text-left px-4 py-3">Date</th><th class="text-left px-4 py-3">Heure</th><th class="text-left px-4 py-3">Ligne</th>
-        <th class="text-left px-4 py-3">Bateau</th><th class="text-left px-4 py-3">Places</th><th class="text-left px-4 py-3">Prix</th><th class="px-4 py-3"></th>
+        <th class="text-left px-4 py-3">Bateau</th><th class="text-left px-4 py-3">Places</th><th class="text-left px-4 py-3">Prix</th><th class="text-left px-4 py-3">Statut</th><th class="px-4 py-3 text-right">Actions</th>
       </tr></thead>
       <tbody class="divide-y divide-navy/5">
         {% for t in traversees %}
-        <tr class="board-row">
+        <tr class="board-row {% if t.statut == 'ANNULEE' %}opacity-60{% endif %}">
           <td class="px-4 py-3">{{ t.date }}</td>
           <td class="px-4 py-3 font-mono">{{ t.heure|time:"H:i" }}</td>
           <td class="px-4 py-3 font-semibold text-navy">{{ t.route }}</td>
           <td class="px-4 py-3">{{ t.bateau.nom }}</td>
           <td class="px-4 py-3 font-mono">{{ t.places_reservees }}/{{ t.bateau.capacite }}</td>
           <td class="px-4 py-3 font-mono font-semibold">{{ t.prix|floatformat:0|intcomma }} FC</td>
+          <td class="px-4 py-3">
+            {% if t.statut == 'PROGRAMMEE' %}<span class="bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-full px-3 py-1">Programmée</span>
+            {% elif t.statut == 'RETARDEE' %}<span class="bg-amber-50 text-amber-700 text-xs font-semibold rounded-full px-3 py-1">Retardée</span>
+            {% elif t.statut == 'PARTIE' %}<span class="bg-teal-50 text-teal-700 text-xs font-semibold rounded-full px-3 py-1">Partie</span>
+            {% elif t.statut == 'ANNULEE' %}<span class="bg-red-50 text-red-600 text-xs font-semibold rounded-full px-3 py-1">Annulée</span>
+            {% endif %}
+          </td>
           <td class="px-4 py-3 text-right">
-            <form method="post" action="{% url 'admin_trip_delete' t.id %}" onsubmit="return confirm('Supprimer cette traversée ?');">
-              {% csrf_token %}
-              <button type="submit" class="text-red-500 text-xs font-semibold hover:underline">Supprimer</button>
-            </form>
+            <a href="{% url 'admin_manifest' t.id %}" class="text-teal text-xs font-semibold hover:underline">Manifeste</a>
+            <div class="flex flex-wrap justify-end gap-1 mt-1.5">
+              {% if t.statut == 'ANNULEE' %}
+                <form method="post" action="{% url 'admin_trip_statut' t.id %}" class="inline">
+                  {% csrf_token %}<input type="hidden" name="statut" value="PROGRAMMEE">
+                  <button type="submit" class="text-emerald-600 text-xs font-semibold hover:underline">Reprogrammer</button>
+                </form>
+              {% elif t.statut == 'PROGRAMMEE' %}
+                <form method="post" action="{% url 'admin_trip_statut' t.id %}" class="inline">
+                  {% csrf_token %}<input type="hidden" name="statut" value="RETARDEE">
+                  <button type="submit" class="text-amber-600 text-xs font-semibold hover:underline">Retarder</button>
+                </form>
+                <form method="post" action="{% url 'admin_trip_delete' t.id %}" onsubmit="return confirm('Supprimer cette traversée ?');" class="inline">
+                  {% csrf_token %}
+                  <button type="submit" class="text-ink/40 text-xs font-semibold hover:underline">Supprimer</button>
+                </form>
+              {% endif %}
+              {% if t.statut == 'RETARDEE' %}
+                <form method="post" action="{% url 'admin_trip_statut' t.id %}" class="inline">
+                  {% csrf_token %}<input type="hidden" name="statut" value="PARTIE">
+                  <button type="submit" class="text-teal-600 text-xs font-semibold hover:underline">Départ</button>
+                </form>
+              {% endif %}
+              {% if t.statut != 'ANNULEE' %}
+                <form method="post" action="{% url 'admin_trip_statut' t.id %}" onsubmit="return confirm('Annuler cette traversée ? Les billets payés seront remboursés et prévenus par e-mail.');" class="inline">
+                  {% csrf_token %}<input type="hidden" name="statut" value="ANNULEE">
+                  <button type="submit" class="text-red-500 text-xs font-semibold hover:underline">Annuler</button>
+                </form>
+              {% endif %}
+            </div>
           </td>
         </tr>
         {% endfor %}

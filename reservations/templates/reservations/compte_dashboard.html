@@ -19,6 +19,42 @@
     </div>
   </section>
 
+  <section class="mb-10 card p-6 reveal" style="--d:.08s">
+    <div class="flex items-start justify-between flex-wrap gap-4">
+      <div>
+        <div class="kicker mb-1">Fidélité SILIMU</div>
+        <h2 class="font-display text-lg font-bold text-navy">Voyagez 10 fois, la 11ᵉ est offerte</h2>
+        <p class="text-sm text-ink/60 mt-1">
+          {% if recompenses_disponibles %}
+            Bravo ! Vous avez <b>gagné un billet gratuit</b>. Présentez votre code au comptoir à votre prochaine traversée.
+          {% else %}
+            Encore <b>{{ reste_pour_billet }}</b> voyage{{ reste_pour_billet|pluralize }} embarqué{{ reste_pour_billet|pluralize }} avant votre billet gratuit.
+          {% endif %}
+        </p>
+      </div>
+      <div class="text-center">
+        <div class="font-mono text-4xl font-extrabold text-sunset">{{ voyages_fidelite }}</div>
+        <div class="font-mono text-[10px] uppercase tracking-widest text-ink/45">voyages embarqués</div>
+      </div>
+    </div>
+    <div class="mt-5 h-2.5 rounded-full bg-dock overflow-hidden">
+      <div class="h-full rounded-full bg-gradient-to-r from-teal to-aqua" style="width:{% widthratio progression_pct 100 100 %}%"></div>
+    </div>
+    <div class="font-mono text-[11px] text-ink/45 mt-1 flex justify-between">
+      <span>{{ voyages_fidelite }} / 10</span>
+      <span>10 voyages = billet gratuit</span>
+    </div>
+    {% for r in recompenses_disponibles %}
+    <div class="mt-5 flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#0f9668" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-7 h-7 flex-none bg-emerald-100 rounded-full p-1.5"><path d="M20 6L9 17l-5-5"/></svg>
+      <div class="flex-1">
+        <div class="text-sm font-bold text-emerald-800">Billet gratuit à utiliser</div>
+        <div class="font-mono text-xs text-emerald-700 mt-0.5">Présentez ce code au comptoir : <b class="tracking-[0.15em]">{{ r.code }}</b></div>
+      </div>
+    </div>
+    {% endfor %}
+  </section>
+
   <div class="flex items-center justify-between mb-4 reveal" style="--d:.1s">
     <h2 class="font-display text-lg font-bold text-navy">Mes réservations ({{ reservations|length }})</h2>
     <a href="{% url 'mes_billets' %}" class="text-sm text-teal font-semibold hover:text-navy transition">Retrouver par code →</a>

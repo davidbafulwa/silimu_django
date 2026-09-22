@@ -4,7 +4,7 @@ from datetime import timedelta, time
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from reservations.models import Route, Bateau, Traversee
+from reservations.models import Port, Route, Bateau, Traversee
 
 
 ROUTES = [
@@ -50,10 +50,16 @@ class Command(BaseCommand):
             Route.objects.all().delete()
             self.stdout.write(self.style.WARNING("Anciennes données supprimées."))
 
+        # ── Ports ──────────────────────────────────────────────────────
+        ports = {}
+        for nom in ("Bukavu", "Goma", "Idjwi", "Minova", "Kalehe", "Uvira", "Kalemie"):
+            port, _ = Port.objects.get_or_create(nom=nom, defaults={'est_actif': True})
+            ports[nom] = port
+
         routes = []
         for depart, arrivee, dist, duree in ROUTES:
             route, _ = Route.objects.get_or_create(
-                port_depart=depart, port_arrivee=arrivee,
+                port_depart=ports[depart], port_arrivee=ports[arrivee],
                 defaults={'distance_km': dist, 'duree_min': duree}
             )
             routes.append(route)

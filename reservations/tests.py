@@ -3,15 +3,25 @@ from decimal import Decimal
 from unittest.mock import patch
 
 from django.contrib.auth.models import User, Group
-from django.test import TestCase, Client
+from django.core import mail
+from django.test import TestCase, Client, override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from .decorators import GROUPE_ADMIN, GROUPE_AGENT
-from .models import Route, Bateau, Traversee, Reservation, Passager
+from .models import (
+    Port, Route, Bateau, Traversee, Reservation, Passager,
+    Embarquement, Remboursement, HistoriqueReservation,
+    RecompenseFidelite, NotificationInterne,
+)
+from . import services
+from .notifications import payload_qr, verifier_signature
 
 
 def creer_jeu_de_donnees():
-    route = Route.objects.create(port_depart="Munyaga", port_arrivee="Kasenyi", distance_km=38, duree_min=75)
+    depart = Port.objects.create(nom="Munyaga", est_actif=True)
+    arrivee = Port.objects.create(nom="Kasenyi", est_actif=True)
+    route = Route.objects.create(port_depart=depart, port_arrivee=arrivee, distance_km=38, duree_min=75)
     bateau = Bateau.objects.create(nom="MV Test", capacite=10, type_bateau=Bateau.TypeBateau.VEDETTE)
     traversee = Traversee.objects.create(
         route=route, bateau=bateau, date=date.today() + timedelta(days=1),
@@ -343,3 +353,392 @@ class ApiTests(TestCase):
         r = self.client.get(f'/api/reservations/{reservation.code}/')
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.json()['code'], reservation.code)
+
+
+class ServiceAntiSurbookingTests(TestCase):
+    """Le service de réservation atomic rejette la survente."""
+
+    def setUp(self):
+        self.route, self.bateau, self.traversee = creer_jeu_de_donnees()
+
+    def test_reserver_place_au_dela_de_la_capacite_rejete(self):
+        services.reserver_place(self.traversee, 5, nom_passager="A", telephone="1")
+        with self.assertRaises(services.SurbookingError):
+            services.reserver_place(self.traversee, 6, nom_passager="B", telephone="2")
+        # la réservation rejetée n'a pas été créée
+        self.assertEqual(Reservation.objects.filter(nom_passager="B").count(), 0)
+
+    def test_reserver_place_calcule_total_et_statut_attente(self):
+        r = services.reserver_place(self.traversee, 3, nom_passager="C", telephone="3")
+        self.assertEqual(r.total, Decimal("30000"))
+        self.assertEqual(r.statut, Reservation.Statut.EN_ATTENTE)
+        self.assertIsNotNone(r.expire_le)
+
+
+class ExpirationReservationsTests(TestCase):
+    """La commande libère les places des paiements jamais effectués."""
+
+    def setUp(self):
+        self.route, self.bateau, self.traversee = creer_jeu_de_donnees()
+        from django.utils import timezone
+
+    def test_commande_expire_attentes_depassees(self):
+        from django.core.management import call_command
+        from django.utils import timezone
+        import io
+
+        ancienne = Reservation.objects.create(
+            traversee=self.traversee, nom_passager="Yann", telephone="1", nb_places=4,
+            total=40000, statut=Reservation.Statut.EN_ATTENTE,
+            expire_le=timezone.now() - timedelta(minutes=1),
+        )
+        future = Reservation.objects.create(
+            traversee=self.traversee, nom_passager="Zoe", telephone="2", nb_places=1,
+            total=10000, statut=Reservation.Statut.EN_ATTENTE,
+            expire_le=timezone.now() + timedelta(hours=1),
+        )
+
+        out = io.StringIO()
+        call_command('expirer_reservations', stdout=out)
+
+        ancienne.refresh_from_db()
+        future.refresh_from_db()
+        self.assertEqual(ancienne.statut, Reservation.Statut.ECHEC)
+        self.assertIsNone(ancienne.expire_le)
+        self.assertEqual(future.statut, Reservation.Statut.EN_ATTENTE)
+        # 10 places de capacité : seule la réservation encore valide bloque 1 place
+        self.assertEqual(self.traversee.places_disponibles(), 9)
+
+
+class EmbarquementTests(TestCase):
+    """Le contrôle d'embarquement au port valide chaque billet une seule fois."""
+
+    def setUp(self):
+        self.route, self.bateau, self.traversee = creer_jeu_de_donnees()
+        Group.objects.get_or_create(name=GROUPE_AGENT)
+        self.agent = User.objects.create_user('agent_emb', password='pass12345', is_staff=True)
+        self.agent.groups.add(Group.objects.get(name=GROUPE_AGENT))
+        self.client.force_login(self.agent)
+
+    def test_scanner_valide_un_billet_confirme(self):
+        r = Reservation.objects.create(
+            traversee=self.traversee, nom_passager="Emile", telephone="0",
+            nb_places=2, total=20000, statut=Reservation.Statut.CONFIRME
+        )
+        response = self.client.post(reverse('admin_embarquement'), {'code': r.code})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context['resultat']['ok'])
+        r.refresh_from_db()
+        self.assertEqual(r.statut, Reservation.Statut.EMBARQUE)
+        self.assertTrue(Embarquement.objects.filter(reservation=r, valide_par=self.agent).exists())
+
+    def test_scanner_refuse_un_double_embarquement(self):
+        r = Reservation.objects.create(
+            traversee=self.traversee, nom_passager="Nora", telephone="1",
+            nb_places=1, total=10000, statut=Reservation.Statut.CONFIRME
+        )
+        self.client.post(reverse('admin_embarquement'), {'code': r.code})
+        self.client.post(reverse('admin_embarquement'), {'code': r.code})
+        self.assertEqual(Embarquement.objects.filter(reservation=r).count(), 1)
+
+    def test_scanner_refuse_un_billet_non_confirme(self):
+        r = Reservation.objects.create(
+            traversee=self.traversee, nom_passager="Polo", telephone="2",
+            nb_places=1, total=10000, statut=Reservation.Statut.EN_ATTENTE
+        )
+        response = self.client.post(reverse('admin_embarquement'), {'code': r.code})
+        self.assertFalse(response.context['resultat']['ok'])
+        r.refresh_from_db()
+        self.assertEqual(r.statut, Reservation.Statut.EN_ATTENTE)
+
+    def test_manifeste_par_place_et_export_csv(self):
+        r = Reservation.objects.create(
+            traversee=self.traversee, nom_passager="Lina", telephone="3",
+            nb_places=2, total=20000, statut=Reservation.Statut.CONFIRME
+        )
+        response = self.client.get(reverse('admin_manifest', args=[self.traversee.id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context['manifeste']), 2)
+        csv = self.client.get(reverse('admin_manifest', args=[self.traversee.id]), {'export': 'csv'})
+        self.assertEqual(csv.status_code, 200)
+        self.assertIn('text/csv', csv['Content-Type'])
+
+    def test_payload_qr_signe_et_verifie(self):
+        code = "SLM-ABCD-1234"
+        payload = payload_qr(code)
+        code_extra, ok = payload.split(':')
+        self.assertEqual(code_extra, code)
+        self.assertTrue(verifier_signature(code, ok))
+        self.assertFalse(verifier_signature(code, "0000000000"))
+
+    def test_scanner_accepte_qr_signe_et_embarque(self):
+        r = Reservation.objects.create(
+            traversee=self.traversee, nom_passager="Salomé", telephone="4",
+            nb_places=1, total=10000, statut=Reservation.Statut.CONFIRME
+        )
+        response = self.client.post(reverse('admin_embarquement'), {'code': payload_qr(r.code)})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context['resultat']['ok'])
+        r.refresh_from_db()
+        self.assertEqual(r.statut, Reservation.Statut.EMBARQUE)
+
+    def test_scanner_rejette_qr_falsifie(self):
+        r = Reservation.objects.create(
+            traversee=self.traversee, nom_passager="Robin", telephone="5",
+            nb_places=1, total=10000, statut=Reservation.Statut.CONFIRME
+        )
+        response = self.client.post(
+            reverse('admin_embarquement'), {'code': f"{r.code}:faussesignature"}
+        )
+        self.assertFalse(response.context['resultat']['ok'])
+        self.assertIn('falsifié', response.context['resultat']['message'])
+        r.refresh_from_db()
+        self.assertEqual(r.statut, Reservation.Statut.CONFIRME)
+
+    def test_scanner_accepte_url_du_billet(self):
+        r = Reservation.objects.create(
+            traversee=self.traversee, nom_passager="Uri", telephone="6",
+            nb_places=1, total=10000, statut=Reservation.Statut.CONFIRME
+        )
+        url = f"https://billets.silimu.cd/billet/{r.code}"
+        response = self.client.post(reverse('admin_embarquement'), {'code': url})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context['resultat']['ok'])
+
+    def test_scanner_ajax_renvoie_fiche_detaille(self):
+        r = Reservation.objects.create(
+            traversee=self.traversee, nom_passager="Ivonne", telephone="7",
+            email="ivo@exemple.cd", nb_places=1, total=10000,
+            statut=Reservation.Statut.CONFIRME, mode_paiement="ORANGE_MONEY"
+        )
+        response = self.client.post(
+            reverse('admin_embarquement'), {'code': r.code, 'ajax': '1'}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, r.code)
+        self.assertContains(response, r.email)
+        self.assertContains(response, "Ivonne")
+
+    def test_fiche_scan_affiche_dates_reservation_et_embarquement(self):
+        r = Reservation.objects.create(
+            traversee=self.traversee, nom_passager="Fanny", telephone="8",
+            nb_places=1, total=10000, statut=Reservation.Statut.CONFIRME
+        )
+        response = self.client.post(reverse('admin_embarquement'), {'code': r.code, 'ajax': '1'})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Réservé le")
+        self.assertContains(response, timezone.localtime(r.date_creation).strftime("%d/%m/%Y"))
+        emb = Embarquement.objects.get(reservation=r)
+        self.assertContains(response, timezone.localtime(emb.date_embarquement).strftime("%d/%m/%Y"))
+        self.assertContains(response, "agent_emb")
+
+    def test_fiche_scan_billet_deja_utilise_montre_heure_exacte(self):
+        r = Reservation.objects.create(
+            traversee=self.traversee, nom_passager="Fred", telephone="9",
+            nb_places=1, total=10000, statut=Reservation.Statut.CONFIRME
+        )
+        self.client.post(reverse('admin_embarquement'), {'code': r.code, 'ajax': '1'})
+        emb = Embarquement.objects.get(reservation=r)
+        response = self.client.post(reverse('admin_embarquement'), {'code': r.code, 'ajax': '1'})
+        self.assertContains(response, "déjà utilisé")
+        self.assertContains(response, timezone.localtime(emb.date_embarquement).strftime("%d/%m/%Y"))
+        self.assertContains(response, "agent_emb")
+
+    def test_billet_public_montre_date_reservation(self):
+        r = Reservation.objects.create(
+            traversee=self.traversee, nom_passager="Gael", telephone="10",
+            nb_places=1, total=10000, statut=Reservation.Statut.CONFIRME
+        )
+        response = self.client.get(reverse('billet', args=[r.code]))
+        self.assertContains(response, "Réservé le")
+        self.assertContains(response, timezone.localtime(r.date_creation).strftime("%d/%m/%Y"))
+
+    def test_billet_public_embarque_montre_heure_embarquement(self):
+        r = Reservation.objects.create(
+            traversee=self.traversee, nom_passager="Hugo", telephone="11",
+            nb_places=1, total=10000, statut=Reservation.Statut.CONFIRME
+        )
+        self.client.post(reverse('admin_embarquement'), {'code': r.code})
+        emb = Embarquement.objects.get(reservation=r)
+        response = self.client.get(reverse('billet', args=[r.code]))
+        self.assertContains(response, "Billet déjà utilisé")
+        self.assertContains(response, timezone.localtime(emb.date_embarquement).strftime("%d/%m/%Y"))
+        self.assertContains(response, "agent_emb")
+
+
+class ArchivageAdminTests(TestCase):
+    """Depuis Django admin, on archive un billet dans l'historique et on le
+    masque de la liste active — sans détruire la donnée : le passager muni
+    d'un compte continue de retrouver son billet."""
+
+    def setUp(self):
+        self.route, self.bateau, self.traversee = creer_jeu_de_donnees()
+        Group.objects.get_or_create(name=GROUPE_ADMIN)
+        self.admin = User.objects.create_user('admin_archive', password='pass12345', is_staff=True, is_superuser=True)
+        self.admin.groups.add(Group.objects.get(name=GROUPE_ADMIN))
+        self.client.force_login(self.admin)
+
+    def test_action_admin_archive_masque_mais_garde_la_reservation(self):
+        r = Reservation.objects.create(
+            traversee=self.traversee, nom_passager="Arch", telephone="99",
+            nb_places=2, total=20000, statut=Reservation.Statut.CONFIRME
+        )
+        Embarquement.objects.create(reservation=r, traversee=self.traversee, valide_par=self.admin)
+        response = self.client.post(
+            reverse('admin:reservations_reservation_changelist'),
+            {'action': 'archiver_et_supprimer', '_selected_action': [str(r.pk)],
+             'index': '0', 'select_across': '0'},
+        )
+        self.assertEqual(response.status_code, 302)
+        r.refresh_from_db()
+        self.assertTrue(r.archivee)
+        arch = HistoriqueReservation.objects.get(code=r.code)
+        self.assertEqual(arch.nom_passager, "Arch")
+        self.assertEqual(arch.total, 20000)
+        self.assertEqual(arch.statut, Reservation.Statut.CONFIRME)
+        self.assertEqual(arch.embarquement_le, r.embarquement.date_embarquement)
+        self.assertEqual(arch.archive_par, self.admin)
+
+    def test_reservation_archivee_masquee_de_la_liste_admin_mais_visible_passager(self):
+        r = Reservation.objects.create(
+            traversee=self.traversee, nom_passager="Cache", telephone="97",
+            nb_places=1, total=10000, statut=Reservation.Statut.CONFIRME
+        )
+        HistoriqueReservation.creer_depuis(r, archive_par=self.admin)
+        r.archivee = True
+        r.save(update_fields=['archivee'])
+        changelist = self.client.get(reverse('admin:reservations_reservation_changelist'))
+        self.assertNotContains(changelist, r.nom_passager)
+        billet = self.client.get(reverse('billet', args=[r.code]))
+        self.assertEqual(billet.status_code, 200)
+        self.assertContains(billet, r.nom_passager)
+
+    def test_archivage_garde_total_rembourse(self):
+        r = Reservation.objects.create(
+            traversee=self.traversee, nom_passager="Remb", telephone="98",
+            nb_places=1, total=10000, statut=Reservation.Statut.ANNULE
+        )
+        Remboursement.objects.create(reservation=r, montant=10000, motif='ANNULATION', cree_par=self.admin)
+        HistoriqueReservation.creer_depuis(r, archive_par=self.admin)
+        arch = HistoriqueReservation.objects.get(code=r.code)
+        self.assertEqual(arch.rembourse_total, 10000)
+        self.assertTrue(Reservation.objects.filter(pk=r.pk).exists())
+
+
+class FideliteTests(TestCase):
+    """Tous les 10 voyages embarqués, un billet gratuit est attribué
+    automatiquement : e-mail au dernier e-mail connu + notification interne."""
+
+    def setUp(self):
+        self.route, self.bateau, self.traversee = creer_jeu_de_donnees()
+        Group.objects.get_or_create(name=GROUPE_AGENT)
+        self.agent = User.objects.create_user('agent_fid', password='pass12345', is_staff=True)
+        self.agent.groups.add(Group.objects.get(name=GROUPE_AGENT))
+        self.client.force_login(self.agent)
+
+    def _voyage(self, telephone, email=''):
+        return Reservation.objects.create(
+            traversee=self.traversee, nom_passager="Fid", telephone=telephone,
+            email=email, nb_places=1, total=10000,
+            statut=Reservation.Statut.EMBARQUE,
+        )
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_recompense_au_10eme_voyage_envoie_email_et_notification(self):
+        for _ in range(9):
+            self._voyage('699')
+        self._voyage('699', email='fidel@exemple.cd')
+        from .fidelite import attribuer_recompense
+        recompense = attribuer_recompense('699')
+        self.assertIsNotNone(recompense)
+        self.assertTrue(recompense.code.startswith('FID-'))
+        self.assertEqual(recompense.seuil, 10)
+        self.assertIsNotNone(recompense.envoye_le)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn(recompense.code, mail.outbox[0].subject)
+        self.assertEqual(mail.outbox[0].to, ['fidel@exemple.cd'])
+        self.assertTrue(NotificationInterne.objects.filter(
+            type='FIDELITE', telephone='699', recompense=recompense
+        ).exists())
+
+    def test_pas_de_recompense_en_dessous_de_10(self):
+        for _ in range(9):
+            self._voyage('700')
+        from .fidelite import attribuer_recompense
+        self.assertIsNone(attribuer_recompense('700'))
+
+    def test_recompense_unique_par_palier(self):
+        for _ in range(12):
+            self._voyage('701')
+        from .fidelite import attribuer_recompense
+        r1 = attribuer_recompense('701')
+        self.assertIsNotNone(r1)
+        self.assertIsNone(attribuer_recompense('701'))
+        self.assertEqual(RecompenseFidelite.objects.filter(telephone='701').count(), 1)
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_scan_du_10eme_voyage_attribue_la_recompense_automatiquement(self):
+        for _ in range(9):
+            self._voyage('702', email='scan@exemple.cd')
+        r = Reservation.objects.create(
+            traversee=self.traversee, nom_passager="Scan", telephone='702',
+            email='scan@exemple.cd', nb_places=1, total=10000,
+            statut=Reservation.Statut.CONFIRME,
+        )
+        response = self.client.post(reverse('admin_embarquement'), {'code': r.code})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context['resultat']['ok'])
+        reward = RecompenseFidelite.objects.filter(telephone='702').first()
+        self.assertIsNotNone(reward)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertTrue(NotificationInterne.objects.filter(recompense=reward).exists())
+
+
+class StatutTraverseeTests(TestCase):
+    """Annuler une traversée rembourse les billets payés et libère les attentes."""
+
+    def setUp(self):
+        self.route, self.bateau, self.traversee = creer_jeu_de_donnees()
+        Group.objects.get_or_create(name=GROUPE_ADMIN)
+        self.admin = User.objects.create_user('admin_trip', password='pass12345', is_staff=True)
+        self.admin.groups.add(Group.objects.get(name=GROUPE_ADMIN))
+        self.client.force_login(self.admin)
+
+    def test_annulation_traversee_declenche_remboursement_et_echec_attentes(self):
+        payee = Reservation.objects.create(
+            traversee=self.traversee, nom_passager="Anne", telephone="0",
+            nb_places=2, total=20000, statut=Reservation.Statut.CONFIRME
+        )
+        attente = Reservation.objects.create(
+            traversee=self.traversee, nom_passager="Bruno", telephone="1",
+            nb_places=3, total=30000, statut=Reservation.Statut.EN_ATTENTE
+        )
+        response = self.client.post(
+            reverse('admin_trip_statut', args=[self.traversee.id]),
+            {'statut': Traversee.Statut.ANNULEE}
+        )
+        self.assertEqual(response.status_code, 302)
+
+        payee.refresh_from_db()
+        attente.refresh_from_db()
+        self.assertEqual(payee.statut, Reservation.Statut.ANNULE)
+        self.assertEqual(attente.statut, Reservation.Statut.ECHEC)
+        remb = Remboursement.objects.get(reservation=payee)
+        self.assertEqual(remb.motif, Remboursement.Motif.TRAVERSEE_ANNULEE)
+        self.assertEqual(remb.montant, payee.total)
+
+    def test_traversee_annulee_exclue_de_la_recherche(self):
+        self.traversee.statut = Traversee.Statut.ANNULEE
+        self.traversee.save()
+        response = self.client.get(reverse('home'), {'depart': 'Munyaga'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(list(response.context['resultats']), [])
+
+    def test_traversee_delete_refusee_si_reservations(self):
+        Reservation.objects.create(
+            traversee=self.traversee, nom_passager="C", telephone="2",
+            nb_places=1, total=10000, statut=Reservation.Statut.CONFIRME
+        )
+        response = self.client.post(reverse('admin_trip_delete', args=[self.traversee.id]))
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(Traversee.objects.filter(pk=self.traversee.pk).exists())

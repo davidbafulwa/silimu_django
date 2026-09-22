@@ -4,6 +4,7 @@ Conception et réalisation d'une application web de gestion de réservation
 de billets de transport lacustre — cas de l'établissement SILIMU.
 """
 import os
+import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -26,6 +27,26 @@ CSRF_TRUSTED_ORIGINS = [
     o.strip() for o in os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',') if o.strip()
 ]
 
+
+def _lan_origines():
+    origines = set()
+    try:
+        import socket
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('8.8.8.8', 80))
+        ip_locale = s.getsockname()[0]
+        s.close()
+        for port in ('8000', '8443'):
+            origines.add(f'http://{ip_locale}:{port}')
+            origines.add(f'https://{ip_locale}:{port}')
+    except OSError:
+        pass
+    origines.update(['http://localhost:8000', 'http://127.0.0.1:8000', 'https://localhost:8443', 'https://127.0.0.1:8443'])
+    return sorted(origines)
+
+
+CSRF_TRUSTED_ORIGINS += _lan_origines()
+
 # --------------------------------------------------------------------
 # Applications
 # --------------------------------------------------------------------
@@ -39,6 +60,7 @@ INSTALLED_APPS = [
     'django.contrib.humanize',
 
     'rest_framework',
+    'django_extensions',
 
     'reservations',
 ]
@@ -83,8 +105,18 @@ ASGI_APPLICATION = 'silimu.asgi.application'
 # fourni par PostgreSQL managé de Render et par le pooler Supabase.
 # Sinon SUPABASE_DATABASE_URL, puis les variables DB_* classiques,
 # puis SQLite (développement local).
+# Pendant l'exécution des tests, SQLite est utilisé en local : la suite
+# de tests ne dépend ainsi d'aucune base de données distante (Supabase/Render).
+RUNNING_TESTS = 'test' in sys.argv
 DATABASE_URL = os.environ.get('DATABASE_URL', '')
-if DATABASE_URL:
+if RUNNING_TESTS:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db_test.sqlite3',
+        }
+    }
+elif DATABASE_URL:
     DATABASES = {
         'default': dj_database_url.config(
             default=DATABASE_URL,
@@ -93,6 +125,9 @@ if DATABASE_URL:
             ssl_require='render' not in DATABASE_URL,
         )
     }
+    # Le pooler Supabase (pgbouncer, port 6543) ne supporte pas les curseurs
+    # côté serveur : sans ce réglage, dumpdata et certaines requêtes échouent.
+    DATABASES['default']['DISABLE_SERVER_SIDE_CURSORS'] = True
 elif os.environ.get('SUPABASE_DATABASE_URL', ''):
     DATABASES = {
         'default': {
@@ -219,6 +254,11 @@ ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', '')
 SEUIL_ALERTE_REMPLISSAGE = int(os.environ.get('SEUIL_ALERTE_REMPLISSAGE', '90'))
 # Nombre d'heures avant le départ à partir duquel le rappel automatique est envoyé
 RAPPEL_HEURES_AVANT = int(os.environ.get('RAPPEL_HEURES_AVANT', '24'))
+# Délai (minutes) laissé à une réservation EN ATTENTE avant libération de ses places
+DELAI_EXPIRATION_ATTENTE = int(os.environ.get('DELAI_EXPIRATION_ATTENTE', '30'))
+# Secret utilisé pour signer le contenu du QR code des billets (anti-fraude :
+# un QR inventé sans la bonne signature est rejeté à l'embarquement).
+SILIMU_QR_SECRET = os.environ.get('SILIMU_QR_SECRET', 'silimu-lac-kivu-changez-moi')
 
 # --------------------------------------------------------------------
 # API REST (Django REST Framework)

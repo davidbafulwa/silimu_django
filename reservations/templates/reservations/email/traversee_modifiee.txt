@@ -1,0 +1,12 @@
+Bonjour {{ reservation.nom_passager }},
+
+{{ reservation.traversee.route }} — {{ reservation.traversee.date|date:"d/m/Y" }} à {{ reservation.traversee.heure|time:"H:i" }}
+Bateau : {{ reservation.traversee.bateau.nom }}
+Code billet : {{ reservation.code }}
+
+Information : votre traversée est {{ libelle_statut|lower }}.
+
+Merci de vous présenter au port pour les dernières consignes.
+Notre équipe reste à votre disposition.
+
+SILIMU — Transport lacustre

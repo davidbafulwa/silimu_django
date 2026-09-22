@@ -11,10 +11,14 @@
         <div class="font-mono text-[10px] uppercase text-white/50">Statut</div>
         <div class="font-semibold text-sm
           {% if reservation.statut == 'CONFIRME' %}text-emerald-300
+          {% elif reservation.statut == 'EMBARQUE' %}text-aqua
           {% elif reservation.statut == 'EN_ATTENTE' %}text-amber-300
           {% else %}text-red-300{% endif %}">
           {{ reservation.get_statut_display }}
         </div>
+        {% if reservation.statut == 'EN_ATTENTE' and reservation.expire_le %}
+          <div class="font-mono text-[10px] text-amber-200/80 mt-1">paiement avant {{ reservation.expire_le|date:"d/m H:i" }}</div>
+        {% endif %}
       </div>
     </div>
     <div class="mt-6 flex items-center justify-between">
@@ -44,13 +48,25 @@
       <div><div class="kicker text-[10px]">Durée</div><div class="font-semibold text-navy mt-0.5">{{ reservation.traversee.route.duree_min }} min</div></div>
       <div><div class="kicker text-[10px]">Places</div><div class="font-semibold text-navy mt-0.5">{{ reservation.nb_places }}</div></div>
       <div><div class="kicker text-[10px]">Paiement</div><div class="font-semibold text-navy mt-0.5">{{ reservation.get_mode_paiement_display }}</div></div>
+      <div><div class="kicker text-[10px]">Réservé le</div><div class="font-semibold text-navy mt-0.5">{{ reservation.date_creation|date:"d/m/Y à H:i" }}</div></div>
+      <div><div class="kicker text-[10px]">Code billet</div><div class="font-semibold text-navy mt-0.5 font-mono">{{ reservation.code }}</div></div>
     </div>
     <div class="flex items-center justify-between mt-5 pt-4 border-t border-dashed border-dock">
       <span class="kicker text-[10px]">Total payé</span>
       <span class="font-display text-xl font-extrabold text-navy">{{ reservation.total|floatformat:0|intcomma }} FC</span>
     </div>
+    {% if reservation.statut == 'EMBARQUE' %}
+    <div class="mt-5 rounded-2xl px-4 py-3 text-sm border-2 border-amber-300 bg-amber-50 text-amber-900">
+      <div class="font-bold uppercase tracking-wide text-[11px] mb-1">⚠️ Billet déjà utilisé</div>
+      <div>Embarqué le <b>{% if reservation.embarquement %}{{ reservation.embarquement.date_embarquement|date:"d/m/Y à H:i:s" }}{% endif %}</b>{% if reservation.embarquement.valide_par %} par <b>{{ reservation.embarquement.valide_par }}</b>{% endif %}.</div>
+    </div>
+    {% elif reservation.statut == 'ANNULE' or reservation.statut == 'ECHEC' %}
+    <div class="mt-5 rounded-2xl px-4 py-3 text-sm border border-red-200 bg-red-50 text-red-900">
+      ⛔ Billet non valide ({{ reservation.get_statut_display }}) : ne pas laisser embarquer.
+    </div>
+    {% endif %}
     <div class="flex flex-col items-center mt-5 bg-mist rounded-2xl py-5">
-      <img src="data:image/png;base64,{{ reservation.code|qr_code }}" alt="QR code du billet" class="w-28 h-28">
+      <img src="data:image/png;base64,{{ reservation|qr_ticket }}" alt="QR code du billet" class="w-28 h-28">
       <div class="text-center font-mono text-sm tracking-[0.3em] font-bold text-navy mt-2">{{ reservation.code }}</div>
       <div class="text-[11px] text-navy/45 mt-1">Présentez ce QR code à l'embarquement</div>
     </div>

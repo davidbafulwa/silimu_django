@@ -2,15 +2,77 @@
 {% load static humanize %}
 {% block title %}SILIMU — Réserver un billet de bateau au Kivu{% endblock %}
 
+{% block extra_head %}
+<style>
+  /* ─── Section fidélité : image + verre dépoli, sans emoji ────── */
+  .loyal{position:relative;border-radius:24px;overflow:hidden;color:#fff;isolation:isolate;box-shadow:0 40px 90px -40px rgba(7,48,63,.7)}
+  .loyal-bg{position:absolute;inset:-10%;z-index:-3;background:url("{% static 'img/sunset.jpg' %}") center/cover no-repeat;animation:loyal-pan 30s ease-in-out infinite alternate;will-change:transform}
+  .loyal-veil{position:absolute;inset:0;z-index:-2;background:linear-gradient(102deg,rgba(7,48,63,.97) 6%,rgba(11,61,76,.86) 42%,rgba(11,61,76,.42) 70%,rgba(7,48,63,.72))}
+  .loyal-veil::after{content:'';position:absolute;top:-45%;left:-12%;width:52%;height:190%;transform:rotate(19deg);background:linear-gradient(90deg,transparent,rgba(143,211,222,.16),transparent);filter:blur(8px)}
+  @keyframes loyal-pan{from{transform:scale(1.02) translateX(0)}to{transform:scale(1.15) translateX(-3%)}}
+  @media (prefers-reduced-motion:reduce){.loyal-bg{animation:none}}
+
+  .loyal-inner{position:relative;z-index:1;display:grid;grid-template-columns:1.45fr .9fr;gap:2rem;align-items:center;padding:clamp(1.6rem,4vw,2.8rem)}
+  @media (max-width:900px){.loyal-inner{grid-template-columns:1fr;gap:1.6rem}}
+
+  .loyal-tag{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.28em;text-transform:uppercase;color:#9fdcE6;display:inline-flex;align-items:center;gap:9px;border:1px solid rgba(143,211,222,.45);background:rgba(143,211,222,.08);border-radius:999px;padding:7px 14px}
+  .loyal-tag::before{content:'';width:7px;height:7px;border-radius:50%;background:#0fb5b0;animation:loyal-pulse 2.4s infinite}
+  @keyframes loyal-pulse{70%{box-shadow:0 0 0 10px rgba(15,181,176,0)}100%{box-shadow:0 0 0 0 rgba(15,181,176,0)}}
+
+  .loyal-title{font-family:'Sora',sans-serif;font-weight:800;line-height:1.1;margin:1rem 0 0;font-size:clamp(1.5rem,3.4vw,2.3rem);letter-spacing:-.01em}
+  .loyal-title em{font-style:normal;background:linear-gradient(92deg,#ffbe9a,#f47533 60%,#e8622a);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .loyal-sub{margin:.8rem 0 0;max-width:34rem;font-size:.9rem;line-height:1.65;color:rgba(255,255,255,.8)}
+  .loyal-sub strong{color:#fff;font-weight:700}
+
+  .loyal-points{list-style:none;margin:1.1rem 0 0;padding:0;display:grid;gap:.5rem}
+  .loyal-points li{display:flex;align-items:center;gap:.7rem;font-size:.86rem;color:rgba(255,255,255,.88)}
+  .loyal-points svg{flex:none;width:18px;height:18px;border-radius:50%;background:rgba(15,181,176,.2);padding:4px;stroke:#8fd3de}
+
+  .loyal-cta{display:flex;flex-wrap:wrap;gap:10px;margin-top:1.4rem}
+  .loyal-ghost{display:inline-flex;align-items:center;gap:9px;border:1.5px solid rgba(255,255,255,.4);color:#fff;background:rgba(255,255,255,.07);font-weight:700;font-size:14px;padding:13px 22px;border-radius:12px;transition:background .25s,transform .25s,border-color .25s}
+  .loyal-ghost:hover{background:rgba(255,255,255,.16);transform:translateY(-1px);border-color:rgba(255,255,255,.7)}
+
+  .loyal-card{position:relative;border-radius:22px;padding:1.8rem 1.6rem;text-align:center;border:1px solid rgba(255,255,255,.17);background:linear-gradient(160deg,rgba(255,255,255,.13),rgba(255,255,255,.04));backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 28px 70px -26px rgba(3,20,28,.8);overflow:hidden}
+  .loyal-card::before{content:'';position:absolute;inset:0;background:radial-gradient(130% 85% at 50% 0%,rgba(143,211,222,.18),transparent 55%)}
+  .loyal-card>*{position:relative}
+
+  .loyal-ring{--v:100%;width:120px;height:120px;margin:0 auto;border-radius:50%;background:conic-gradient(#f47533 var(--v),rgba(255,255,255,.16) 0);padding:10px;box-shadow:0 0 0 1px rgba(255,255,255,.08),0 14px 40px -14px rgba(244,117,51,.45)}
+  .loyal-ring-inner{width:100%;height:100%;border-radius:50%;background:rgba(7,48,63,.6);display:grid;place-items:center;align-content:center;gap:2px}
+  .loyal-ring-num{font-family:'Sora',sans-serif;font-weight:800;font-size:2.4rem;line-height:1;letter-spacing:-.02em}
+  .loyal-ring-label{font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:.26em;text-transform:uppercase;color:rgba(255,255,255,.68)}
+
+  .loyal-card-rule{height:1px;margin:1.1rem 0 1rem;background:linear-gradient(90deg,transparent,rgba(255,255,255,.38),transparent)}
+  .loyal-card-reward{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap}
+  .loyal-chip{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:#9fdcE6;border:1px solid rgba(143,211,222,.45);border-radius:999px;padding:6px 11px;background:rgba(143,211,222,.1)}
+  .loyal-card-reward strong{font-family:'Sora',sans-serif;font-size:1.2rem}
+  .loyal-card-note{margin:.7rem 0 0;font-size:.75rem;color:rgba(255,255,255,.62)}
+
+  /* ─── Bande de statistiques : chiffres bien visibles ─────────── */
+  .stats-band{position:relative;overflow:hidden;border-radius:30px;padding:1.2rem;display:grid;grid-template-columns:repeat(4,1fr);gap:1.2rem;text-align:center;background:linear-gradient(135deg,#062a36 0%,#09455c 52%,#07303f 100%);border:1px solid rgba(143,211,222,.18);box-shadow:0 30px 70px -34px rgba(7,48,63,.8)}
+  @media (min-width:760px){.stats-band{padding:2.4rem 2rem}}
+  .stats-band::before{content:'';position:absolute;left:14%;right:14%;top:0;height:3px;border-radius:0 0 8px 8px;background:linear-gradient(90deg,transparent,#f47533,#f8af3c,#0fb5b0,transparent)}
+  .stats-item{position:relative;padding:1.1rem .6rem}
+  .stats-item+.stats-item::before{content:'';position:absolute;left:0;top:18%;bottom:18%;width:1px;background:linear-gradient(180deg,transparent,rgba(255,255,255,.2),transparent)}
+  .stats-num{font-family:'Sora',sans-serif;font-weight:800;line-height:1;letter-spacing:-.02em;font-size:clamp(2.1rem,5vw,3.4rem);color:#fff;text-shadow:0 0 28px rgba(244,117,51,.55),0 12px 26px rgba(3,20,28,.5)}
+  .stats-label{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:#a7dde6;margin-top:.75rem}
+  @media (max-width:680px){.stats-band{grid-template-columns:repeat(2,1fr);gap:1rem}.stats-item+.stats-item::before{display:none}}
+</style>
+{% endblock %}
+
 {% block hero %}
 <!-- ═══════════════════════════════════════════════════════════════
      HERO — Plein écran avec image du lac + moteur de recherche
      ═══════════════════════════════════════════════════════════════ -->
 <section class="relative min-h-[600px] md:min-h-[680px] flex items-end md:items-center overflow-hidden">
-  <div class="absolute inset-0">
-    <img src="{% static 'img/hero.jpg' %}" alt="Traversée sur le lac Kivu" class="w-full h-full object-cover" loading="eager">
-    <div class="absolute inset-0 bg-gradient-to-r from-deep/90 via-deep/60 to-deep/20"></div>
-    <div class="absolute inset-0 bg-gradient-to-t from-deep/80 via-transparent to-transparent md:from-transparent md:via-transparent"></div>
+  <div class="hero-media">
+    <img src="{% static 'img/hero.jpg' %}" alt="Traversée sur le lac Kivu" loading="eager">
+    <div class="hero-shine"></div>
+    <span class="hero-drift w-3 h-3" style="top:22%;left:12%"></span>
+    <span class="hero-drift w-2 h-2" style="top:60%;left:22%;animation-delay:1.2s"></span>
+    <span class="hero-drift w-4 h-4" style="top:30%;right:16%;animation-delay:2.1s"></span>
+    <span class="hero-drift w-2.5 h-2.5" style="bottom:32%;right:8%;animation-delay:3s"></span>
+    <div class="absolute inset-0 bg-gradient-to-r from-deep/85 via-deep/35 to-deep/10"></div>
+    <div class="absolute inset-0 bg-gradient-to-t from-deep/85 via-transparent to-deep/10"></div>
   </div>
 
   <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 pb-16 pt-24 w-full">
@@ -88,16 +150,20 @@
      BANDEAU DE CONFIANCE
      ═══════════════════════════════════════════════════════════════ -->
 <section class="no-print mb-16 reveal" style="--d:.1s">
-  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-    {% for t in trust %}
-    <div class="card p-4 flex items-center gap-3">
-      <span class="w-11 h-11 rounded-2xl bg-aqua/10 text-teal flex items-center justify-center text-xl shrink-0">{{ t.icon }}</span>
-      <div>
-        <div class="font-bold text-navy text-sm">{{ t.title }}</div>
-        <div class="text-xs text-ink/50">{{ t.sub }}</div>
+  <div class="relative rounded-[28px] overflow-hidden p-6 md:p-9 shadow-soft border border-ink/5"
+       style="background:linear-gradient(135deg,#eef4f6 0%,#ffffff 45%,#f6f2ea 100%);">
+    <div class="hero-shine opacity-60"></div>
+    <div class="relative grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {% for t in trust %}
+      <div class="card p-4 flex items-center gap-3 backdrop-blur-sm">
+        <span class="w-11 h-11 rounded-2xl bg-aqua/10 text-teal flex items-center justify-center text-xl shrink-0">{{ t.icon }}</span>
+        <div>
+          <div class="font-bold text-navy text-sm">{{ t.title }}</div>
+          <div class="text-xs text-ink/50">{{ t.sub }}</div>
+        </div>
       </div>
+      {% endfor %}
     </div>
-    {% endfor %}
   </div>
 </section>
 
@@ -262,22 +328,22 @@
      STATISTIQUES
      ═══════════════════════════════════════════════════════════════ -->
 <section class="mb-20 reveal" style="--d:.3s">
-  <div class="bg-gradient-to-br from-navy to-deep rounded-3xl p-8 md:p-12 grid grid-cols-2 md:grid-cols-4 gap-8 text-center text-white">
-    <div>
-      <div class="font-display text-4xl md:text-5xl font-extrabold title-grad-sun" data-count="{{ stats_marketing.ports }}">0</div>
-      <div class="text-white/60 text-sm mt-2 font-medium">Ports desservis</div>
+  <div class="stats-band">
+    <div class="stats-item">
+      <div class="stats-num" data-count="{{ stats_marketing.ports }}">0</div>
+      <div class="stats-label">Ports desservis</div>
     </div>
-    <div>
-      <div class="font-display text-4xl md:text-5xl font-extrabold title-grad-sun" data-count="{{ stats_marketing.lignes }}">0</div>
-      <div class="text-white/60 text-sm mt-2 font-medium">Lignes actives</div>
+    <div class="stats-item">
+      <div class="stats-num" data-count="{{ stats_marketing.lignes }}">0</div>
+      <div class="stats-label">Lignes actives</div>
     </div>
-    <div>
-      <div class="font-display text-4xl md:text-5xl font-extrabold title-grad-sun" data-count="{{ stats_marketing.bateaux }}">0</div>
-      <div class="text-white/60 text-sm mt-2 font-medium">Bateaux en flotte</div>
+    <div class="stats-item">
+      <div class="stats-num" data-count="{{ stats_marketing.bateaux }}">0</div>
+      <div class="stats-label">Bateaux en flotte</div>
     </div>
-    <div>
-      <div class="font-display text-4xl md:text-5xl font-extrabold title-grad-sun" data-count="{{ stats_marketing.departs_aujourdhui }}">0</div>
-      <div class="text-white/60 text-sm mt-2 font-medium">Départs aujourd'hui</div>
+    <div class="stats-item">
+      <div class="stats-num" data-count="{{ stats_marketing.departs_aujourdhui }}">0</div>
+      <div class="stats-label">Départs aujourd'hui</div>
     </div>
   </div>
 </section>
@@ -298,6 +364,60 @@
       <p class="text-sm text-ink/60 leading-relaxed">{{ atout.text }}</p>
     </div>
     {% endfor %}
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     FIDÉLITÉ — Voyagez 10 fois, la 11ᵉ est offerte
+     ═══════════════════════════════════════════════════════════════ -->
+<section class="mb-20 reveal" style="--d:.3s">
+  <div class="loyal">
+    <div class="loyal-bg" role="presentation"></div>
+    <div class="loyal-veil" role="presentation"></div>
+    <div class="loyal-inner">
+      <div>
+        <span class="loyal-tag">Programme de fidélité</span>
+        <h2 class="loyal-title font-display">Voyagez dix fois.<br><em>La onzième traversée est offerte.</em></h2>
+        <p class="loyal-sub">
+          Chaque voyage embarqué fait avancer votre compteur. Au dixième, un
+          <strong>billet gratuit</strong> vous est attribué automatiquement,
+          sans démarche — la récompense arrive par e-mail dès que vous y êtes.
+        </p>
+        <ul class="loyal-points">
+          <li>
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+            Compteur automatique à chaque embarquement
+          </li>
+          <li>
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+            E-mail envoyé automatiquement à votre dixième voyage
+          </li>
+          <li>
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+            Valable sur toute traversée, sans date limite
+          </li>
+        </ul>
+        <div class="loyal-cta">
+          <a href="#recherche" class="btn btn-primary px-5 py-3 text-sm">Réserver ma prochaine traversée</a>
+          <a href="{% url 'mes_billets' %}" class="loyal-ghost">Vérifier mon compteur</a>
+        </div>
+      </div>
+
+      <div class="loyal-card">
+        <div class="loyal-ring" style="--v:100%">
+          <div class="loyal-ring-inner">
+            <div class="loyal-ring-num">10</div>
+            <div class="loyal-ring-label">voyages embarqués</div>
+          </div>
+        </div>
+        <div class="loyal-card-rule"></div>
+        <div class="loyal-card-reward">
+          <span class="loyal-chip">Votre récompense</span>
+          <strong>1 billet offert</strong>
+        </div>
+        <p class="loyal-card-note">Attribution automatique, suivie par notre équipe.</p>
+      </div>
+    </div>
   </div>
 </section>
 

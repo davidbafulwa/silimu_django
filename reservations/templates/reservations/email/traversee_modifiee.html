@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8"><title>SILIMU — Votre traversée</title></head>
+<body style="margin:0;padding:24px;background:#f6f2ea;font-family:Arial,sans-serif;">
+  <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;">
+    <div style="background:#07303f;color:#fff;padding:20px;">
+      <div style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#0fb5b0;">SILIMU</div>
+      <div style="font-size:20px;font-weight:bold;margin-top:4px;">Votre traversée est {{ libelle_statut|lower }}</div>
+    </div>
+    <div style="padding:24px;color:#123140;">
+      <p>Bonjour <strong>{{ reservation.nom_passager }}</strong>,</p>
+      <p>Votre traversée {{ reservation.traversee.route }} du <strong>{{ reservation.traversee.date|date:"d/m/Y" }}</strong>
+        à <strong>{{ reservation.traversee.heure|time:"H:i" }}</strong> est <strong>{{ libelle_statut|lower }}</strong>.</p>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;">
+        <tr><td style="padding:6px 0;color:#666;">Bateau</td><td style="text-align:right;font-weight:bold;">{{ reservation.traversee.bateau.nom }}</td></tr>
+        <tr><td style="padding:6px 0;color:#666;">Code billet</td><td style="text-align:right;font-weight:bold;">{{ reservation.code }}</td></tr>
+      </table>
+      <p style="font-size:14px;color:#445;">Merci de vous présenter au port pour les dernières consignes. Notre équipe reste à votre disposition.</p>
+      <p style="font-size:12px;color:#889;margin-top:24px;">SILIMU — Transport lacustre sur le lac Kivu et le lac Tanganyika.</p>
+    </div>
+  </div>
+</body></html>

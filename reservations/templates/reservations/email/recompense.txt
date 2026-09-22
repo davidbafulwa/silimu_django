@@ -1,0 +1,18 @@
+Félicitations !
+
+Vous avez effectué {{ recompense.seuil }} voyages à bord des bateaux SILIMU.
+
+En guise de remerciement pour votre fidélité, nous vous offrons un billet gratuit
+pour la traversée de votre choix.
+
+Votre code fidélité : {{ recompense.code }}
+
+Comment l'utiliser :
+- Présentez ce code au comptoir lors de votre prochaine réservation, ou
+- utilisez-le lors de votre réservation en ligne.
+
+Valide sur toute traversée SILIMU, sans date limite.
+
+Merci de votre confiance — bon voyage sur le Lac Kivu !
+
+L'équipe SILIMU

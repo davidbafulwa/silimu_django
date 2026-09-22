@@ -64,7 +64,7 @@
         <tbody class="divide-y divide-navy/5">
           {% for l in par_ligne %}
           <tr class="board-row">
-            <td class="px-5 py-2">{{ l.traversee__route__port_depart }} → {{ l.traversee__route__port_arrivee }}</td>
+            <td class="px-5 py-2">{{ l.traversee__route__port_depart__nom }} → {{ l.traversee__route__port_arrivee__nom }}</td>
             <td class="px-5 py-2">{{ l.places }}</td>
             <td class="px-5 py-2 font-mono font-semibold text-navy">{{ l.recette|floatformat:0|intcomma }} FC</td>
           </tr>
@@ -95,20 +95,52 @@
     </div>
   </div>
 
-  <div class="card p-5">
-    <div class="kicker mb-3">Aperçu du réseau</div>
+  <div class="card p-5 mb-8">
+    <div class="kicker mb-1">Aperçu du réseau</div>
     <p class="text-sm text-ink/60">
       {{ stats.nb_lignes }} ligne(s) lacustre(s) exploitée(s) avec {{ stats.nb_bateaux }} bateau(x)
       ({{ stats.nb_bateaux_maintenance }} en maintenance), pour {{ stats.nb_traversees }} traversées programmées au total,
       dont {{ stats.traversees_aujourdhui }} aujourd'hui.
     </p>
   </div>
+
+  <div class="card p-5">
+    <div class="flex items-center justify-between mb-3">
+      <div class="kicker">
+        🔔 Notifications automatiques
+        {% if nb_notifications_non_lues %}
+        <span class="ml-2 bg-sunset text-white text-[10px] font-bold rounded-full px-2 py-0.5 align-middle">{{ nb_notifications_non_lues }} nouvelle{{ nb_notifications_non_lues|pluralize }}</span>
+        {% endif %}
+      </div>
+    </div>
+    {% if notifications %}
+    <ul class="divide-y divide-navy/5 text-sm">
+      {% for n in notifications %}
+      <li class="py-2.5 flex items-start gap-3">
+        <span class="text-lg">{% if n.type == 'FIDELITE' %}🎁{% else %}🔔{% endif %}</span>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center justify-between gap-3">
+            <span class="font-semibold text-navy{% if not n.lue %} text-teal{% endif %}">{{ n.message }}</span>
+            <span class="font-mono text-[10px] text-ink/40 whitespace-nowrap">{{ n.cree_le|timesince }}</span>
+          </div>
+          {% if n.detail %}<div class="text-xs text-ink/55 mt-0.5">{{ n.detail }}</div>{% endif %}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    <div class="mt-2">
+      <a href="/django-admin/reservations/notificationinterne/" class="text-xs text-teal font-semibold hover:text-navy">Voir toutes les notifications →</a>
+    </div>
+    {% else %}
+    <p class="text-sm text-ink/50">Aucune notification pour le moment.</p>
+    {% endif %}
+  </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-  var lignesLabels = [{% for l in par_ligne %}"{{ l.traversee__route__port_depart }} → {{ l.traversee__route__port_arrivee }}"{% if not forloop.last %},{% endif %}{% endfor %}];
+  var lignesLabels = [{% for l in par_ligne %}"{{ l.traversee__route__port_depart__nom }} → {{ l.traversee__route__port_arrivee__nom }}"{% if not forloop.last %},{% endif %}{% endfor %}];
   var lignesData = [{% for l in par_ligne %}{{ l.recette|default:0 }}{% if not forloop.last %},{% endif %}{% endfor %}];
   var bateauxLabels = [{% for b in par_bateau %}"{{ b.traversee__bateau__nom }}"{% if not forloop.last %},{% endif %}{% endfor %}];
   var bateauxData = [{% for b in par_bateau %}{{ b.recette|default:0 }}{% if not forloop.last %},{% endif %}{% endfor %}];
